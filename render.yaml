@@ -9,7 +9,8 @@ services:
     region: frankfurt
     plan: free
     rootDir: .
-    buildCommand: npm install && npm run build:shared && npm run build -w @enzae/server
+    # Build shared + client + server so the server can serve the client (one URL).
+    buildCommand: npm install && npm run build:shared && npm run build -w @enzae/client && npm run build -w @enzae/server
     startCommand: npm run start -w @enzae/server
     healthCheckPath: /health
     envVars:

@@ -1,5 +1,7 @@
 import "dotenv/config";
 import http from "http";
+import path from "path";
+import fs from "fs";
 import express from "express";
 import cors from "cors";
 import { Server, matchMaker } from "colyseus";
@@ -25,7 +27,6 @@ async function main() {
   app.get("/health", (_req, res) => {
     res.json({ ok: true, firebase: isFirebaseEnabled(), ts: Date.now() });
   });
-  app.get("/", (_req, res) => res.send("🦎 enzae Chameleon game server"));
 
   // Public room browser: list joinable, non-private game rooms.
   app.get("/rooms", async (_req, res) => {
@@ -44,6 +45,22 @@ async function main() {
       res.json([]);
     }
   });
+
+  // Single-service deploy: serve the built client from this server so the game
+  // runs on one URL (UI + WebSocket on the same origin). Falls back to a plain
+  // status page when no client build is present (e.g. server-only dev).
+  const clientDist =
+    process.env.CLIENT_DIST || path.resolve(__dirname, "../../client/dist");
+  if (fs.existsSync(path.join(clientDist, "index.html"))) {
+    app.use(express.static(clientDist));
+    // SPA fallback: serve index.html for any non-API GET route.
+    app.get(/^\/(?!health|rooms|matchmake|colyseus).*/, (_req, res) => {
+      res.sendFile(path.join(clientDist, "index.html"));
+    });
+    console.log(`[static] serving client from ${clientDist}`);
+  } else {
+    app.get("/", (_req, res) => res.send("🦎 enzae Chameleon game server"));
+  }
 
   const server = http.createServer(app);
   const gameServer = new Server({ transport: new WebSocketTransport({ server }) });

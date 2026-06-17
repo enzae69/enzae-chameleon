@@ -160,57 +160,39 @@ In Firestore das Dokument `users/<uid>` öffnen und das Feld `role` auf
 
 ---
 
-## ☁️ Öffentlich spielbar machen (GitHub Pages + Render)
+## ☁️ Öffentlich spielbar machen
 
-Ein Multiplayer-Spiel braucht **zwei** Online-Teile: den **Client** (statische
-Seite, hier auf GitHub Pages) **und** den **Game-Server** (auf Render). Beide
-kostenlos. **Reihenfolge ist wichtig** – erst der Server, dann der Client.
+### ✅ Empfohlen: Eine URL auf Render (Server **+** Client zusammen)
 
-### Schritt 1 — Server auf Render
+Der Game-Server liefert den gebauten Client gleich mit aus – **eine** URL, keine
+zweite Seite, keine Variablen, kein CORS. Der Client verbindet sich automatisch
+mit dem Server, von dem er geladen wurde (`wss://` auf der HTTPS-Seite).
 
 1. <https://render.com> → **New → Blueprint** → dieses Repo wählen (nutzt `render.yaml`).
-2. Deploy abwarten. Du erhältst eine URL wie
-   `https://enzae-chameleon-server.onrender.com`.
-3. (Optional) Im Render-Dashboard das Secret `FIREBASE_SERVICE_ACCOUNT` setzen,
-   um Accounts/XP zu aktivieren. `CORS_ORIGIN` kann auf `*` bleiben.
+2. Deploy abwarten – fertig. Spiel läuft unter z. B.
+   **`https://enzae-chameleon-server.onrender.com`** 🎮
+3. (Optional) Im Render-Dashboard `FIREBASE_SERVICE_ACCOUNT` setzen, um
+   Accounts/XP zu aktivieren. `CORS_ORIGIN` kann auf `*` bleiben.
 
-> ℹ️ Free-Plan schläft nach ~15 Min Inaktivität ein → erster Spieler ~30–60 s Kaltstart.
+> ℹ️ Free-Plan schläft nach ~15 Min Inaktivität ein → erster Spieler ~30–60 s
+> Kaltstart. Danach läuft alles flüssig.
+>
+> Der Build baust shared → client → server; der Server findet den Client unter
+> `packages/client/dist` (oder via `CLIENT_DIST`-Env-Var).
 
-### Schritt 2 — Pages aktivieren
+### Alternative: getrennte Hosts (Client auf GitHub Pages / Vercel)
 
-GitHub-Repo → **Settings → Pages → Source: „GitHub Actions"**.
+Nur nötig, wenn der Client separat vom Server laufen soll. Dann muss
+`VITE_SERVER_URL` auf die **`wss://`**-Render-URL zeigen (HTTPS-Seite ⇒ `wss://`,
+nicht `ws://`).
 
-### Schritt 3 — Server-URL als Repo-Variable hinterlegen
-
-Repo → **Settings → Secrets and variables → Actions → Variables → New variable**:
-
-| Variable | Wert |
-|---|---|
-| `VITE_SERVER_URL` | **`wss://`**`…onrender.com` (deine Render-URL, mit `wss://`!) |
-| `VITE_FIREBASE_API_KEY` … `VITE_FIREBASE_APP_ID` | *(optional, für Accounts)* |
-
-> Die Pages-Seite ist HTTPS → der Server muss **`wss://`** sein (nicht `ws://`),
-> sonst blockt der Browser die Verbindung.
-
-### Schritt 4 — Deploy auslösen
-
-Der Workflow `.github/workflows/deploy-pages.yml` läuft bei jedem Push (oder
-manuell unter **Actions → Deploy Client to GitHub Pages → Run workflow**).
-Ergebnis-URL: **`https://<dein-user>.github.io/enzae-chameleon/`**
-
-> Läuft der Deploy auf deinem `claude/…`-Branch nicht durch (Environment-Schutz),
-> dann unter **Settings → Environments → github-pages** diesen Branch erlauben –
-> oder den Branch nach `main` mergen.
-
-> Nach jeder Änderung an `VITE_SERVER_URL` den Workflow **erneut** ausführen, da
-> die URL beim Build fest eingebaut wird.
-
-### Alternative Client-Hosts
-
-- **Vercel:** Repo importieren (`vercel.json` wird genutzt), Env-Vars `VITE_SERVER_URL`
-  + `VITE_FIREBASE_*` setzen. (Kein `BASE_PATH` nötig – Vercel served unter `/`.)
-- **Firebase Hosting:** `VITE_SERVER_URL` in `packages/client/.env` setzen, dann
-  `npm run build:shared && npm run build -w @enzae/client && firebase deploy --only hosting`.
+- **GitHub Pages:** Workflow `.github/workflows/deploy-pages.yml` ist eingerichtet.
+  Repo → **Settings → Pages → Source: „GitHub Actions"**, dann unter
+  **Settings → Secrets and variables → Actions → Variables** die Variable
+  `VITE_SERVER_URL` (+ optional `VITE_FIREBASE_*`) setzen und den Workflow
+  erneut ausführen. URL: `https://<user>.github.io/enzae-chameleon/`.
+- **Vercel:** Repo importieren (`vercel.json` wird genutzt), `VITE_SERVER_URL`
+  (+ `VITE_FIREBASE_*`) als Env-Vars setzen.
 
 ---
 
