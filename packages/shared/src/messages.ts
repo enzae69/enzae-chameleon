@@ -1,0 +1,88 @@
+import type { Team, GamePhase } from "./types";
+
+/** Messages sent FROM client TO server. */
+export const ClientMessage = {
+  Input: "input",
+  ChangeColor: "change_color",
+  CopyColor: "copy_color",
+  Tag: "tag",
+  Emote: "emote",
+  Chat: "chat",
+  ToggleReady: "toggle_ready",
+  RequestStart: "request_start",
+} as const;
+export type ClientMessageType = (typeof ClientMessage)[keyof typeof ClientMessage];
+
+/** Messages sent FROM server TO client. */
+export const ServerMessage = {
+  Tagged: "tagged",
+  Eliminated: "eliminated",
+  PhaseChange: "phase_change",
+  MatchEnd: "match_end",
+  Chat: "chat",
+  Emote: "emote",
+  Notice: "notice",
+  Error: "error",
+} as const;
+export type ServerMessageType = (typeof ServerMessage)[keyof typeof ServerMessage];
+
+// ---- Client -> Server payloads ----
+export interface InputPayload {
+  seq: number;
+  moveX: number; // movement intent on world X, range -1..1
+  moveZ: number; // movement intent on world Z, range -1..1
+  rotationY: number; // facing angle in radians
+}
+export interface ChangeColorPayload {
+  color: string;
+}
+// CopyColorPayload: empty; server resolves the nearest prop colour authoritatively.
+export interface CopyColorPayload {}
+export interface TagPayload {
+  targetSessionId: string;
+}
+export interface EmotePayload {
+  emote: string;
+}
+export interface ChatPayload {
+  text: string;
+}
+
+// ---- Server -> Client events ----
+export interface TaggedEvent {
+  by: string;
+  target: string;
+}
+export interface EliminatedEvent {
+  sessionId: string;
+}
+export interface PhaseChangeEvent {
+  phase: GamePhase;
+  phaseEndsAt: number; // server epoch ms
+}
+export interface MatchEndReward {
+  sessionId: string;
+  uid: string;
+  xpGained: number;
+}
+export interface MatchEndEvent {
+  winningTeam: Team;
+  rewards: MatchEndReward[];
+}
+export interface ChatEvent {
+  from: string; // sessionId
+  name: string;
+  text: string;
+  ts: number;
+}
+export interface EmoteEvent {
+  sessionId: string;
+  emote: string;
+}
+export interface NoticeEvent {
+  text: string;
+}
+export interface ErrorEvent {
+  code: string;
+  message: string;
+}

@@ -1,0 +1,46 @@
+@import url("https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&display=swap");
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: "Baloo 2", system-ui, -apple-system, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+}
+
+@layer components {
+  .glass {
+    @apply border border-white/15 bg-white/10 shadow-xl backdrop-blur-md;
+  }
+  .btn {
+    @apply inline-flex select-none items-center justify-center gap-2 rounded-2xl px-5 py-3 font-semibold transition active:scale-95 disabled:opacity-50 disabled:active:scale-100;
+  }
+  .btn-primary {
+    @apply btn bg-cham-500 text-white shadow-lg shadow-cham-700/40 hover:bg-cham-400;
+  }
+  .btn-ghost {
+    @apply btn bg-white/10 text-white hover:bg-white/20;
+  }
+  .btn-danger {
+    @apply btn bg-red-500/90 text-white hover:bg-red-500;
+  }
+  .input {
+    @apply w-full rounded-xl border border-white/15 bg-black/30 px-4 py-3 text-white placeholder-white/40 outline-none focus:border-cham-400;
+  }
+  .card {
+    @apply glass rounded-3xl p-5;
+  }
+}

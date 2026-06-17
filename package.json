@@ -1,0 +1,30 @@
+{
+  "name": "enzae-chameleon",
+  "version": "0.1.0",
+  "private": true,
+  "description": "enzae Chameleon - a 3D multiplayer hide-and-seek browser game",
+  "license": "MIT",
+  "workspaces": [
+    "packages/shared",
+    "packages/server",
+    "packages/client"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "npm run build -w @enzae/shared && npm run build -w @enzae/server && npm run build -w @enzae/client",
+    "build:shared": "npm run build -w @enzae/shared",
+    "dev": "npm run build:shared && concurrently -n shared,server,client -c blue,green,magenta \"npm:dev:shared\" \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:shared": "npm run dev -w @enzae/shared",
+    "dev:server": "npm run dev -w @enzae/server",
+    "dev:client": "npm run dev -w @enzae/client",
+    "typecheck": "npm run build:shared && npm run typecheck -w @enzae/server && npm run typecheck -w @enzae/client",
+    "lint": "npm run typecheck",
+    "start": "npm run start -w @enzae/server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "typescript": "^5.6.3"
+  }
+}

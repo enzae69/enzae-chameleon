@@ -1,0 +1,24 @@
+# Render.com Blueprint — deploys the Colyseus game server on the free plan.
+# 1. Push this repo to GitHub.
+# 2. On render.com: New > Blueprint > pick this repo.
+# 3. Add the FIREBASE_SERVICE_ACCOUNT secret (optional) in the dashboard.
+services:
+  - type: web
+    name: enzae-chameleon-server
+    runtime: node
+    region: frankfurt
+    plan: free
+    rootDir: .
+    buildCommand: npm install && npm run build:shared && npm run build -w @enzae/server
+    startCommand: npm run start -w @enzae/server
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: CORS_ORIGIN
+        value: "*"
+      - key: ENABLE_MONITOR
+        value: "false"
+      # Set this (and/or the FIREBASE_* fields) in the Render dashboard, not here.
+      - key: FIREBASE_SERVICE_ACCOUNT
+        sync: false

@@ -1,0 +1,61 @@
+rules_version = '2';
+
+// The game server uses the Firebase Admin SDK, which BYPASSES these rules.
+// So progression (xp, stats, coins), roles and bans are written server-side and
+// are effectively read-only for clients here.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+    function isStaff() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['moderator', 'admin'];
+    }
+
+    match /users/{uid} {
+      allow read: if isSignedIn();
+
+      // A user may create their own doc but must not grant themselves privileges.
+      allow create: if isOwner(uid)
+        && (!('xp' in request.resource.data) || request.resource.data.xp == 0)
+        && (!('role' in request.resource.data) || request.resource.data.role == 'user')
+        && (!('banned' in request.resource.data) || request.resource.data.banned == false);
+
+      // Owners may only edit cosmetic / display fields. Everything else is server-only.
+      allow update: if (isOwner(uid)
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['displayName', 'photoURL', 'cosmetics', 'updatedAt']))
+        || isStaff();
+
+      allow delete: if false;
+
+      match /friends/{friendUid} {
+        allow read: if isOwner(uid);
+        allow write: if isOwner(uid) || isOwner(friendUid);
+      }
+    }
+
+    // Public read, server/admin write only.
+    match /leaderboard/{uid} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    match /cosmetics/{id} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    // Anyone signed in can file a report; only staff can read/triage.
+    match /reports/{id} {
+      allow create: if isSignedIn() && request.resource.data.reporterUid == request.auth.uid;
+      allow read, update, delete: if isStaff();
+    }
+  }
+}
