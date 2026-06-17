@@ -1,8 +1,8 @@
 name: Deploy Client to GitHub Pages
 
+# Manual-only: the recommended deploy serves the client from the Render server
+# (one URL). Run this workflow only if you want the client on GitHub Pages instead.
 on:
-  push:
-    branches: ["main", "claude/trusting-albattani-we38aw"]
   workflow_dispatch:
 
 # Allow the GITHUB_TOKEN to deploy to Pages and verify the deployment origin.
