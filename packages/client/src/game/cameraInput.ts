@@ -67,9 +67,10 @@ export function attachCameraInput(el: HTMLElement): () => void {
       }
       lastPinch = d;
     } else {
-      // Orbit
+      // Orbit (Roblox "look" convention on both axes):
+      //   drag right → look right, drag up → look up.
       camState.yaw -= dx * CAM.ROT_SPEED;
-      camState.pitch = clamp(camState.pitch - dy * CAM.ROT_SPEED, CAM.MIN_PITCH, CAM.MAX_PITCH);
+      camState.pitch = clamp(camState.pitch + dy * CAM.ROT_SPEED, CAM.MIN_PITCH, CAM.MAX_PITCH);
     }
   };
 
