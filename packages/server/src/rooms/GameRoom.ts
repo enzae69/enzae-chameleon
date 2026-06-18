@@ -68,6 +68,7 @@ export class GameRoom extends Room<GameState> {
   private lockedFlag = false;
   private inputs = new Map<string, InputState>();
   private tags = new Map<string, number>(); // sessionId -> eliminations this match
+  private kickedIds = new Set<string>(); // sessions removed by the host (skip reconnection)
   private matchStart = 0;
 
   // ---------------------------------------------------------------- lifecycle
@@ -149,6 +150,13 @@ export class GameRoom extends Room<GameState> {
   }
 
   async onLeave(client: Client, consented: boolean) {
+    // Host-kicked players are removed immediately, never held for reconnection.
+    if (this.kickedIds.has(client.sessionId)) {
+      this.kickedIds.delete(client.sessionId);
+      this.removePlayer(client.sessionId);
+      return;
+    }
+
     const p = this.state.players.get(client.sessionId);
     if (p) p.connected = false;
 
@@ -230,6 +238,24 @@ export class GameRoom extends Room<GameState> {
         return;
       }
       this.startCountdown(3);
+    });
+
+    this.onMessage(ClientMessage.Kick, (client, msg: { targetSessionId?: string }) => {
+      if (client.sessionId !== this.state.hostId) return; // host only
+      const targetId = msg?.targetSessionId;
+      if (!targetId || targetId === client.sessionId) return;
+      const tp = this.state.players.get(targetId);
+      if (!tp) return;
+      this.broadcast(ServerMessage.Notice, { text: `${tp.name} wurde vom Host entfernt.` });
+      const target = this.clients.find((c) => c.sessionId === targetId);
+      if (target) {
+        this.kickedIds.add(targetId);
+        target.send(ServerMessage.Kicked, {});
+        // Give the Kicked message a moment to flush before closing the socket.
+        this.clock.setTimeout(() => target.leave(1000), 150);
+      } else {
+        this.removePlayer(targetId);
+      }
     });
 
     this.onMessage(ClientMessage.Emote, (client, msg: EmotePayload) => {

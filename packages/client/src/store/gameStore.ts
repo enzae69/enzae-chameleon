@@ -82,6 +82,7 @@ interface GameStore {
   tag: (targetSessionId: string) => void;
   toggleReady: () => void;
   requestStart: () => void;
+  kick: (targetSessionId: string) => void;
   sendChat: (text: string) => void;
   sendEmote: (emote: string) => void;
 }
@@ -89,6 +90,16 @@ interface GameStore {
 export const useGame = create<GameStore>((set, get) => {
   let chatSeq = 1;
   let rosterTimer = 0;
+  let reconnecting = false;
+  let kicked = false;
+
+  const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+  const fullReset = () => {
+    window.clearInterval(rosterTimer);
+    resetLive();
+    set({ connected: false, room: null, roster: [], roomId: "", matchResult: null });
+  };
 
   const ensureClient = (): Client => {
     let c = get().client;
@@ -180,11 +191,21 @@ export const useGame = create<GameStore>((set, get) => {
     room.onMessage(ServerMessage.Error, (m: ErrorEvent) => useUI.getState().showToast(m.message));
     room.onMessage(ServerMessage.Tagged, () => {});
     room.onMessage(ServerMessage.Eliminated, () => {});
+    room.onMessage(ServerMessage.Kicked, () => {
+      kicked = true;
+      useUI.getState().showToast("Du wurdest vom Host entfernt.");
+    });
 
-    room.onLeave(() => {
+    room.onLeave((code) => {
       window.clearInterval(rosterTimer);
-      resetLive();
-      set({ connected: false, room: null, roster: [], roomId: "", matchResult: null });
+      // 1000 = normal/consented close (we left, or we were kicked). Anything else
+      // is an unexpected drop → try to reclaim our seat (server holds it ~20s).
+      if (code === 1000 || kicked) {
+        kicked = false;
+        fullReset();
+        return;
+      }
+      void attemptReconnect(room.reconnectionToken);
     });
     room.onError((_code, message) => useUI.getState().showToast(message || "Verbindungsfehler"));
 
@@ -201,6 +222,33 @@ export const useGame = create<GameStore>((set, get) => {
       matchResult: null,
     });
     syncRoster(room);
+  };
+
+  const attemptReconnect = async (token?: string) => {
+    if (reconnecting) return;
+    if (!token) {
+      fullReset();
+      return;
+    }
+    reconnecting = true;
+    set({ connecting: true });
+    useUI.getState().showToast("Verbindung verloren – verbinde neu…");
+    const client = get().client;
+    for (let i = 0; i < 5 && client; i++) {
+      try {
+        await delay(Math.min(6000, 500 * 2 ** i));
+        const newRoom = await client.reconnect(token);
+        reconnecting = false;
+        wire(newRoom);
+        useUI.getState().showToast("Wieder verbunden ✓");
+        return;
+      } catch {
+        // seat may still be held — keep retrying with backoff
+      }
+    }
+    reconnecting = false;
+    fullReset();
+    useUI.getState().showToast("Verbindung verloren.");
   };
 
   const fail = (msg: string) => {
@@ -288,10 +336,10 @@ export const useGame = create<GameStore>((set, get) => {
     },
 
     leave: () => {
+      reconnecting = false;
+      kicked = false;
       get().room?.leave();
-      window.clearInterval(rosterTimer);
-      resetLive();
-      set({ connected: false, room: null, roster: [], roomId: "", matchResult: null });
+      fullReset();
     },
 
     sendInput: (p) => get().room?.send(ClientMessage.Input, p),
@@ -302,6 +350,7 @@ export const useGame = create<GameStore>((set, get) => {
     tag: (targetSessionId) => get().room?.send(ClientMessage.Tag, { targetSessionId }),
     toggleReady: () => get().room?.send(ClientMessage.ToggleReady, {}),
     requestStart: () => get().room?.send(ClientMessage.RequestStart, {}),
+    kick: (targetSessionId) => get().room?.send(ClientMessage.Kick, { targetSessionId }),
     sendChat: (text) => get().room?.send(ClientMessage.Chat, { text }),
     sendEmote: (emote) => get().room?.send(ClientMessage.Emote, { emote }),
   };

@@ -12,6 +12,7 @@ export const ClientMessage = {
   Chat: "chat",
   ToggleReady: "toggle_ready",
   RequestStart: "request_start",
+  Kick: "kick",
 } as const;
 export type ClientMessageType = (typeof ClientMessage)[keyof typeof ClientMessage];
 
@@ -24,6 +25,7 @@ export const ServerMessage = {
   Chat: "chat",
   Emote: "emote",
   Notice: "notice",
+  Kicked: "kicked",
   Error: "error",
 } as const;
 export type ServerMessageType = (typeof ServerMessage)[keyof typeof ServerMessage];
@@ -48,6 +50,9 @@ export interface EmotePayload {
 }
 export interface ChatPayload {
   text: string;
+}
+export interface KickPayload {
+  targetSessionId: string;
 }
 
 // ---- Server -> Client events ----

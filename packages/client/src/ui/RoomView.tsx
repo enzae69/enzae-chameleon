@@ -14,6 +14,7 @@ function WaitingOverlay() {
   const countdownEndsAt = useGame((s) => s.countdownEndsAt);
   const toggleReady = useGame((s) => s.toggleReady);
   const requestStart = useGame((s) => s.requestStart);
+  const kick = useGame((s) => s.kick);
   const leave = useGame((s) => s.leave);
   const showToast = useUI((s) => s.showToast);
 
@@ -56,6 +57,15 @@ function WaitingOverlay() {
               </span>
               {!r.connected && <span className="text-xs text-white/30">offline</span>}
               <span>{r.isReady ? "✅" : "⌛"}</span>
+              {isHost && r.sessionId !== selfId && (
+                <button
+                  className="rounded-md px-1.5 text-sm text-red-300/70 hover:bg-red-500/20 hover:text-red-300"
+                  title={`${r.name} kicken`}
+                  onClick={() => kick(r.sessionId)}
+                >
+                  ✕
+                </button>
+              )}
             </div>
           ))}
         </div>

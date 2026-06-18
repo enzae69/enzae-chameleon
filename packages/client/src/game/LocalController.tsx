@@ -1,15 +1,18 @@
 import { useEffect, useRef, useState } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { PLAYER_RADIUS, PLAYER_HEIGHT, HIDER_SPEED, SEEKER_SPEED, ARENA_HALF } from "@enzae/shared";
 import { live } from "../net/live";
 import { useGame } from "../store/gameStore";
 import { attachKeyboard, getMoveIntent } from "./input";
+import { attachCameraInput, resetCamera, camState, CAM } from "./cameraInput";
+import { colliders } from "./colliders";
 import { PropMesh } from "./Prop";
 
 const BODY_LEN = PLAYER_HEIGHT - 2 * PLAYER_RADIUS;
 const LIMIT = ARENA_HALF - PLAYER_RADIUS - 0.5;
 const SEND_INTERVAL = 1 / 20;
+const HEAD_Y = PLAYER_HEIGHT * 0.9; // camera focus / eye height
 
 export default function LocalController() {
   const group = useRef<THREE.Group>(null!);
@@ -18,14 +21,25 @@ export default function LocalController() {
   const seq = useRef(0);
   const acc = useRef(0);
   const inited = useRef(false);
-  const desired = useRef(new THREE.Vector3());
-  const lookAt = useRef(new THREE.Vector3());
   const lastKind = useRef("");
   const [disguise, setDisguise] = useState<{ kind: string; sx: number; sy: number; sz: number } | null>(
     null
   );
 
+  // Camera working vectors (reused each frame, no per-frame allocation).
+  const ray = useRef(new THREE.Raycaster());
+  const target = useRef(new THREE.Vector3());
+  const offset = useRef(new THREE.Vector3());
+  const camDesired = useRef(new THREE.Vector3());
+  const lookAt = useRef(new THREE.Vector3());
+
+  const { gl } = useThree();
+
   useEffect(() => attachKeyboard(), []);
+  useEffect(() => {
+    resetCamera();
+    return attachCameraInput(gl.domElement);
+  }, [gl]);
 
   useFrame(({ camera }, dt) => {
     const g = group.current;
@@ -46,9 +60,17 @@ export default function LocalController() {
     const isPlayablePhase = phase === "hiding" || phase === "hunting" || phase === "waiting";
     const frozen = eliminated || (phase === "hiding" && team === "seeker") || !isPlayablePhase;
 
+    // --- Camera-relative movement -------------------------------------------
+    // Input intent is in screen space (up = -z). Rotate it by the camera yaw so
+    // "up" always means "away from the camera", like Roblox.
     const intent = frozen ? { x: 0, z: 0 } : getMoveIntent();
-    let mx = intent.x;
-    let mz = intent.z;
+    const yaw = camState.yaw;
+    const sy = Math.sin(yaw);
+    const cy = Math.cos(yaw);
+    const fwdAmt = -intent.z; // screen up
+    const rightAmt = intent.x; // screen right
+    let mx = -sy * fwdAmt + cy * rightAmt;
+    let mz = -cy * fwdAmt - sy * rightAmt;
     const len = Math.hypot(mx, mz);
     if (len > 1) {
       mx /= len;
@@ -79,6 +101,7 @@ export default function LocalController() {
     live.selfX = pos.current.x;
     live.selfZ = pos.current.z;
 
+    // --- Disguise swap (matches RemotePlayers) ------------------------------
     if (self && self.disguiseKind !== lastKind.current) {
       lastKind.current = self.disguiseKind;
       setDisguise(
@@ -94,11 +117,44 @@ export default function LocalController() {
       mat.current.opacity = eliminated ? 0.3 : 1;
     }
 
-    desired.current.set(pos.current.x, 18, pos.current.z + 14);
-    camera.position.lerp(desired.current, Math.min(1, dt * 4));
-    lookAt.current.set(pos.current.x, 0, pos.current.z);
+    // --- Roblox-style orbit camera ------------------------------------------
+    const pitch = camState.pitch;
+    target.current.set(pos.current.x, HEAD_Y, pos.current.z);
+
+    // Offset points from the character to the camera (behind it).
+    offset.current.set(
+      Math.sin(yaw) * Math.cos(pitch),
+      Math.sin(pitch),
+      Math.cos(yaw) * Math.cos(pitch)
+    );
+
+    // Wall/building collision: pull the camera in if something blocks the view.
+    let dist = camState.distance;
+    ray.current.set(target.current, offset.current);
+    ray.current.far = dist + 0.5;
+    if (colliders.length) {
+      const hits = ray.current.intersectObjects(colliders, true);
+      if (hits.length && hits[0].distance < dist) {
+        dist = Math.max(CAM.MIN_DIST, hits[0].distance - 0.3);
+      }
+    }
+
+    const firstPerson = camState.distance <= CAM.FP_DIST;
+    g.visible = !firstPerson; // hide our own body in first person
+
+    if (firstPerson) {
+      camDesired.current.copy(target.current);
+      lookAt.current.copy(target.current).addScaledVector(offset.current, -2);
+      camera.position.copy(camDesired.current);
+    } else {
+      camDesired.current.copy(target.current).addScaledVector(offset.current, dist);
+      if (camDesired.current.y < 0.4) camDesired.current.y = 0.4; // never under the floor
+      lookAt.current.copy(target.current);
+      camera.position.lerp(camDesired.current, Math.min(1, dt * 12));
+    }
     camera.lookAt(lookAt.current);
 
+    // --- Send input to server ------------------------------------------------
     acc.current += dt;
     if (acc.current >= SEND_INTERVAL) {
       acc.current = 0;
@@ -109,13 +165,7 @@ export default function LocalController() {
   return (
     <group ref={group}>
       {disguise ? (
-        <PropMesh
-          ref={mat}
-          kind={disguise.kind}
-          sx={disguise.sx}
-          sy={disguise.sy}
-          sz={disguise.sz}
-        />
+        <PropMesh ref={mat} kind={disguise.kind} sx={disguise.sx} sy={disguise.sy} sz={disguise.sz} />
       ) : (
         <>
           <mesh position={[0, PLAYER_HEIGHT / 2, 0]} castShadow>

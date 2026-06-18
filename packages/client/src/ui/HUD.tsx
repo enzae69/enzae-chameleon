@@ -161,7 +161,11 @@ export default function HUD() {
           {isTouch ? (
             <Joystick />
           ) : (
-            <div className="glass rounded-xl px-3 py-2 text-xs text-white/60">WASD / Pfeile</div>
+            <div className="glass rounded-xl px-3 py-2 text-xs leading-tight text-white/60">
+              WASD bewegen
+              <br />
+              Maus ziehen: Kamera · Rad: Zoom
+            </div>
           )}
         </div>
 

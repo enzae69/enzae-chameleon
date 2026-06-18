@@ -15,6 +15,9 @@ Requisiten als Versteckmöglichkeiten.
 ## ✨ Features
 
 - **3D-Echtzeit-Gameplay** (Three.js / react-three-fiber), Desktop **&** Mobile (Touch-Joystick)
+- **Mobile-Kamera wie in Roblox**: Third-Person-Orbit, 1-Finger-Drehen, Pinch-Zoom bis First-Person, Wandkollision, kamera-relative Bewegung
+- **Auto-Reconnect**: kurze Netzabbrüche holen den Sitz automatisch zurück (kein „Verbindungsfehler" mehr)
+- **Host-Rechte**: Anführer kann Spieler aus dem Raum kicken
 - **Lobby & Matchmaking**: Schnelles Spiel, öffentliche Räume, private Räume mit Code/Passwort
 - **Teams**: Hider vs. Seeker, automatische Zuteilung, Spielphasen (Verstecken → Jagd → Ende)
 - **Tarn-Mechanik**: Farbe bemalen, Objektfarbe kopieren **& in Objekte verwandeln** (serverseitig validiert; Bewegung bricht die Tarnung)
@@ -101,7 +104,9 @@ Auf „**Als Gast spielen**" klicken → „**Schnelles Spiel**". Öffne das Spi
 
 | Aktion | Desktop | Mobile |
 |---|---|---|
-| Bewegen | WASD / Pfeiltasten | Joystick (unten links) |
+| Bewegen (kamera-relativ) | WASD / Pfeiltasten | Joystick (unten links) |
+| Kamera drehen | Maus ziehen | 1 Finger ziehen |
+| Zoomen (stufenlos, bis First-Person) | Mausrad | 2 Finger Pinch |
 | Verwandeln (in nächstes Objekt) | 🪄-Button (still halten!) | 🪄-Button |
 | Tarnen (Objektfarbe kopieren) | 🦎-Button | 🦎-Button |
 | Farbe wählen | 🎨-Button | 🎨-Button |
