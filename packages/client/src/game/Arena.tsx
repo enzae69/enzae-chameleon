@@ -52,8 +52,8 @@ export default function Arena({ seed }: { seed: number }) {
         <meshStandardMaterial color="#c9b48a" roughness={1} />
       </mesh>
 
+      {/* Hedges around the arena (camera collider) */}
       <group ref={colliderRef}>
-        {/* Hedges around the arena */}
         {hedges.map((w, i) => (
           <group key={i} position={[w.x, 0, w.z]}>
             <mesh position={[0, HEDGE_H / 2, 0]} castShadow receiveShadow>
@@ -67,11 +67,12 @@ export default function Arena({ seed }: { seed: number }) {
             </mesh>
           </group>
         ))}
-
-        {buildings.map((b) => (
-          <Building key={b.id} b={b} />
-        ))}
       </group>
+
+      {/* Walk-in houses (each registers its own walls as colliders) */}
+      {buildings.map((b) => (
+        <Building key={b.id} b={b} />
+      ))}
 
       {/* Props of varied shapes */}
       {objects.map((o) => (

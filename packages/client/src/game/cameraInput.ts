@@ -23,7 +23,19 @@ export const camState = {
   yaw: 0, // azimuth around the character
   pitch: 0.55, // elevation
   distance: 9, // current zoom distance
+  invertY: typeof localStorage !== "undefined" && localStorage.getItem("invertY") === "1",
 };
+
+/** Flip vertical look direction; persisted. Returns the new value. */
+export function toggleInvertY(): boolean {
+  camState.invertY = !camState.invertY;
+  try {
+    localStorage.setItem("invertY", camState.invertY ? "1" : "0");
+  } catch {
+    /* ignore */
+  }
+  return camState.invertY;
+}
 
 export function resetCamera(): void {
   camState.yaw = 0;
@@ -67,10 +79,11 @@ export function attachCameraInput(el: HTMLElement): () => void {
       }
       lastPinch = d;
     } else {
-      // Orbit (Roblox "look" convention on both axes):
-      //   drag right → look right, drag up → look up.
+      // Orbit. Horizontal: drag right → look right. Vertical defaults to
+      // drag up → tilt up over the character; flip with the invert-Y toggle.
       camState.yaw -= dx * CAM.ROT_SPEED;
-      camState.pitch = clamp(camState.pitch + dy * CAM.ROT_SPEED, CAM.MIN_PITCH, CAM.MAX_PITCH);
+      const vy = camState.invertY ? -dy : dy;
+      camState.pitch = clamp(camState.pitch - vy * CAM.ROT_SPEED, CAM.MIN_PITCH, CAM.MAX_PITCH);
     }
   };
 

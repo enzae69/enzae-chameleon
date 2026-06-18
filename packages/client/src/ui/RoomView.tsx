@@ -1,8 +1,49 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import GameCanvas from "../game/GameCanvas";
 import HUD from "./HUD";
 import { useGame } from "../store/gameStore";
 import { useUI } from "../store/uiStore";
+
+/** Full-screen role reveal shown when a round begins. */
+function RoleAnnounce() {
+  const phase = useGame((s) => s.phase);
+  const roster = useGame((s) => s.roster);
+  const selfId = useGame((s) => s.selfId);
+  const team = roster.find((r) => r.sessionId === selfId)?.team ?? "hider";
+  const [show, setShow] = useState(false);
+  const prev = useRef(phase);
+
+  useEffect(() => {
+    if (phase === "hiding" && prev.current !== "hiding") {
+      setShow(true);
+      const t = window.setTimeout(() => setShow(false), 4200);
+      prev.current = phase;
+      return () => window.clearTimeout(t);
+    }
+    prev.current = phase;
+  }, [phase]);
+
+  if (!show) return null;
+  const seeker = team === "seeker";
+
+  return (
+    <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center p-4">
+      <div
+        className={`animate-pop rounded-3xl border-4 px-10 py-8 text-center backdrop-blur-md ${
+          seeker ? "border-red-500 bg-red-950/50" : "border-cham-400 bg-cham-950/40"
+        }`}
+      >
+        <div className="text-7xl drop-shadow-lg">{seeker ? "🔴" : "🟢"}</div>
+        <h2 className="font-display mt-2 text-4xl font-black tracking-wide sm:text-5xl">
+          {seeker ? "YOU ARE THE SEEKER" : "YOU ARE A HIDER"}
+        </h2>
+        <p className="mt-2 text-xl font-semibold text-white/80 sm:text-2xl">
+          {seeker ? "Catch the hiders! 🎯" : "Versteck & tarne dich! 🦎"}
+        </p>
+      </div>
+    </div>
+  );
+}
 
 function WaitingOverlay() {
   const roster = useGame((s) => s.roster);
@@ -130,6 +171,7 @@ export default function RoomView() {
     <div className="fixed inset-0 bg-black">
       <GameCanvas />
       <HUD />
+      <RoleAnnounce />
       {phase === "waiting" && <WaitingOverlay />}
       {phase === "ended" && <EndOverlay />}
     </div>

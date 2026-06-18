@@ -3,6 +3,7 @@ import { COLOR_PALETTE, SEEKER_TAG_RANGE, type GamePhase } from "@enzae/shared";
 import { live } from "../net/live";
 import { useGame } from "../store/gameStore";
 import { useUI } from "../store/uiStore";
+import { toggleInvertY } from "../game/cameraInput";
 import Joystick from "./components/Joystick";
 
 const isTouch =
@@ -133,12 +134,23 @@ export default function HUD() {
           <TimerBadge />
         </div>
 
-        <button
-          className="btn-ghost pointer-events-auto px-3 py-2 text-sm"
-          onClick={() => setChatOpen((o) => !o)}
-        >
-          💬
-        </button>
+        <div className="flex gap-2">
+          <button
+            className="btn-ghost pointer-events-auto px-3 py-2 text-sm"
+            title="Kamera Y-Achse invertieren"
+            onClick={() =>
+              showToast(toggleInvertY() ? "Kamera-Y: invertiert" : "Kamera-Y: normal")
+            }
+          >
+            ⇅
+          </button>
+          <button
+            className="btn-ghost pointer-events-auto px-3 py-2 text-sm"
+            onClick={() => setChatOpen((o) => !o)}
+          >
+            💬
+          </button>
+        </div>
       </div>
 
       {/* Role / alive strip */}

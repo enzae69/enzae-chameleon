@@ -15,7 +15,7 @@ export interface MapObject {
   color: string;
 }
 
-/** A larger walk-around structure used as cover. */
+/** A walk-in structure with an interior, used as cover/hiding. */
 export interface Building {
   id: string;
   x: number;
@@ -23,6 +23,7 @@ export interface Building {
   w: number; // width  (x)
   d: number; // depth  (z)
   h: number; // wall height
+  rotY: number; // facing rotation (radians, multiples of PI/2)
   color: string;
   roof: string;
 }
@@ -72,7 +73,7 @@ function sizeForKind(kind: PropKind, rand: () => number): { sx: number; sy: numb
 export function generateMap(seed: number): MapObject[] {
   const rand = mulberry32(seed || 1);
   const objects: MapObject[] = [];
-  const count = 30;
+  const count = 12; // fewer scattered props — buildings carry the scene now
   const half = ARENA_HALF - 3;
   for (let i = 0; i < count; i++) {
     const x = (rand() * 2 - 1) * half;
@@ -89,21 +90,36 @@ export function generateMap(seed: number): MapObject[] {
 export function generateBuildings(seed: number): Building[] {
   const rand = mulberry32(((seed || 1) ^ 0x9e3779b9) >>> 0);
   const out: Building[] = [];
-  const n = 3 + Math.floor(rand() * 2); // 3–4 buildings
-  const half = ARENA_HALF - 6;
-  for (let i = 0; i < n; i++) {
-    const w = 3.5 + rand() * 3.5;
-    const d = 3.5 + rand() * 3.5;
-    const h = 2.6 + rand() * 2.4;
+  const target = 7; // a small village
+  const half = ARENA_HALF - 7;
+  let attempts = 0;
+  while (out.length < target && attempts < 240) {
+    attempts++;
+    const w = 4 + rand() * 3.5;
+    const d = 4 + rand() * 3.5;
     const x = (rand() * 2 - 1) * half;
     const z = (rand() * 2 - 1) * half;
+    const radius = Math.max(w, d) / 2;
+    // Keep the central plaza (seeker spawn) clear.
+    if (Math.hypot(x, z) < 9) continue;
+    // Reject overlaps so buildings never intersect.
+    let ok = true;
+    for (const b of out) {
+      const minDist = radius + Math.max(b.w, b.d) / 2 + 2.0;
+      if (Math.hypot(x - b.x, z - b.z) < minDist) {
+        ok = false;
+        break;
+      }
+    }
+    if (!ok) continue;
     out.push({
-      id: `bld_${i}`,
+      id: `bld_${out.length}`,
       x,
       z,
       w,
       d,
-      h,
+      h: 3.0 + rand() * 1.8,
+      rotY: Math.floor(rand() * 4) * (Math.PI / 2),
       color: BUILDING_COLORS[Math.floor(rand() * BUILDING_COLORS.length)],
       roof: ROOF_COLORS[Math.floor(rand() * ROOF_COLORS.length)],
     });
