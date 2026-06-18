@@ -60,6 +60,12 @@ export function attachCameraInput(el: HTMLElement): () => void {
     // Mouse: only drag with the primary (left) button.
     if (e.pointerType === "mouse" && e.button !== 0) return;
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    // Capture so we keep both fingers through a pinch even if one slides off.
+    try {
+      el.setPointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
     if (pointers.size === 2) lastPinch = pinchDistance();
   };
 
@@ -107,7 +113,6 @@ export function attachCameraInput(el: HTMLElement): () => void {
   el.addEventListener("pointermove", onMove);
   el.addEventListener("pointerup", onUp);
   el.addEventListener("pointercancel", onUp);
-  el.addEventListener("pointerleave", onUp);
   el.addEventListener("wheel", onWheel, { passive: false });
 
   return () => {
@@ -116,7 +121,6 @@ export function attachCameraInput(el: HTMLElement): () => void {
     el.removeEventListener("pointermove", onMove);
     el.removeEventListener("pointerup", onUp);
     el.removeEventListener("pointercancel", onUp);
-    el.removeEventListener("pointerleave", onUp);
     el.removeEventListener("wheel", onWheel);
   };
 }

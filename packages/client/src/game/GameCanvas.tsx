@@ -5,6 +5,7 @@ import { useGame } from "../store/gameStore";
 import Arena from "./Arena";
 import RemotePlayers from "./RemotePlayers";
 import LocalController from "./LocalController";
+import Shots from "./Shots";
 
 const SUN = new THREE.Vector3(34, 46, 24);
 
@@ -89,6 +90,7 @@ export default function GameCanvas() {
       <Arena seed={seed} />
       <RemotePlayers />
       <LocalController />
+      <Shots />
     </Canvas>
   );
 }

@@ -23,7 +23,13 @@ export const SEEKER_SPEED = 6.6; // seekers are slightly faster
 export const SEEKER_TAG_RANGE = 2.4;
 export const COLOR_COPY_RANGE = 3.0;
 export const DISGUISE_RANGE = 3.0; // must be near a prop to morph into it
-export const TAG_COOLDOWN_MS = 3000; // seeker cooldown after a successful tag
+export const TAG_COOLDOWN_MS = 3000; // (legacy)
+
+// --- Seeker weapons ---
+export const LASER_RANGE = 13; // ranged laser bolt
+export const LASER_COOLDOWN_MS = 3200;
+export const TASER_RANGE = 3.4; // short-range taser
+export const TASER_COOLDOWN_MS = 1300;
 
 // Building structure (shared so client rendering & collision match the server).
 export const BUILDING_WALL_T = 0.26; // wall thickness

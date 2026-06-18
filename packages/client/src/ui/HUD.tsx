@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { COLOR_PALETTE, SEEKER_TAG_RANGE, type GamePhase } from "@enzae/shared";
-import { live } from "../net/live";
+import { COLOR_PALETTE, type GamePhase } from "@enzae/shared";
 import { useGame } from "../store/gameStore";
 import { useUI } from "../store/uiStore";
 import { toggleInvertY } from "../game/cameraInput";
@@ -91,8 +90,9 @@ export default function HUD() {
   const changeColor = useGame((s) => s.changeColor);
   const disguise = useGame((s) => s.disguise);
   const undisguise = useGame((s) => s.undisguise);
-  const tag = useGame((s) => s.tag);
-  const tagCooldownUntil = useGame((s) => s.tagCooldownUntil);
+  const shoot = useGame((s) => s.shoot);
+  const laserCdUntil = useGame((s) => s.laserCdUntil);
+  const taserCdUntil = useGame((s) => s.taserCdUntil);
   const sendEmote = useGame((s) => s.sendEmote);
   const showToast = useUI((s) => s.showToast);
 
@@ -100,36 +100,22 @@ export default function HUD() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [, force] = useState(0);
 
-  // Tick while the tag cooldown is counting down so the button updates.
-  const cdLeft = Math.max(0, tagCooldownUntil - Date.now());
+  // Tick while either weapon is on cooldown so the buttons update.
+  const now = Date.now();
+  const laserCd = Math.max(0, laserCdUntil - now);
+  const taserCd = Math.max(0, taserCdUntil - now);
+  const anyCd = laserCd > 0 || taserCd > 0;
   useEffect(() => {
-    if (cdLeft <= 0) return;
-    const t = window.setInterval(() => force((n) => n + 1), 120);
+    if (!anyCd) return;
+    const t = window.setInterval(() => force((n) => n + 1), 100);
     return () => window.clearInterval(t);
-  }, [cdLeft > 0]);
-  const cdSec = Math.ceil(cdLeft / 1000);
+  }, [anyCd]);
 
   const self = roster.find((r) => r.sessionId === selfId);
   const team = self?.team ?? "hider";
   const eliminated = self?.isEliminated ?? false;
   const disguised = self?.disguised ?? false;
   const aliveHiders = roster.filter((r) => r.team === "hider" && !r.isEliminated).length;
-
-  const tagNearest = () => {
-    if (cdLeft > 0) return; // cooldown active
-    let best: string | null = null;
-    let bestD = SEEKER_TAG_RANGE;
-    live.players.forEach((p) => {
-      if (p.team !== "hider" || p.isEliminated) return;
-      const d = Math.hypot(p.x - live.selfX, p.z - live.selfZ);
-      if (d <= bestD) {
-        bestD = d;
-        best = p.sessionId;
-      }
-    });
-    if (best) tag(best);
-    else showToast("Kein Hider in Reichweite");
-  };
 
   const showHiderTools = team === "hider" && !eliminated && phase !== "ended";
   const showSeekerTools = team === "seeker" && !eliminated && phase === "hunting";
@@ -208,13 +194,24 @@ export default function HUD() {
           </div>
 
           {showSeekerTools && (
-            <button
-              className={`px-5 py-4 text-base ${cdLeft > 0 ? "btn-ghost opacity-60" : "btn-danger"}`}
-              onClick={tagNearest}
-              disabled={cdLeft > 0}
-            >
-              {cdLeft > 0 ? `⏳ ${cdSec}s` : "🎯 Markieren"}
-            </button>
+            <div className="flex items-end gap-2">
+              <button
+                className={`px-4 py-4 text-base ${taserCd > 0 ? "btn-ghost opacity-60" : "btn-ghost"}`}
+                onClick={() => shoot("taser")}
+                disabled={taserCd > 0}
+                title="Taser – Nahbereich, kurzer Cooldown"
+              >
+                {taserCd > 0 ? `🔌 ${(taserCd / 1000).toFixed(1)}s` : "🔌 Taser"}
+              </button>
+              <button
+                className={`px-5 py-4 text-base ${laserCd > 0 ? "btn-ghost opacity-60" : "btn-danger"}`}
+                onClick={() => shoot("laser")}
+                disabled={laserCd > 0}
+                title="Laser-Blitz – große Reichweite"
+              >
+                {laserCd > 0 ? `⚡ ${(laserCd / 1000).toFixed(1)}s` : "⚡ Laser"}
+              </button>
+            </div>
           )}
 
           {showHiderTools && (

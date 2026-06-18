@@ -96,22 +96,22 @@ export function generateMap(seed: number): MapObject[] {
 export function generateBuildings(seed: number): Building[] {
   const rand = mulberry32(((seed || 1) ^ 0x9e3779b9) >>> 0);
   const out: Building[] = [];
-  const target = 7; // a small village
-  const half = ARENA_HALF - 7;
+  const target = 6; // a small village of larger houses
+  const half = ARENA_HALF - 8;
   let attempts = 0;
-  while (out.length < target && attempts < 240) {
+  while (out.length < target && attempts < 320) {
     attempts++;
-    const w = 4 + rand() * 3.5;
-    const d = 4 + rand() * 3.5;
+    const w = 6 + rand() * 4.5; // bigger footprints (6–10.5)
+    const d = 6 + rand() * 4.5;
     const x = (rand() * 2 - 1) * half;
     const z = (rand() * 2 - 1) * half;
     const radius = Math.max(w, d) / 2;
     // Keep the central plaza (seeker spawn) clear.
-    if (Math.hypot(x, z) < 9) continue;
+    if (Math.hypot(x, z) < 10) continue;
     // Reject overlaps so buildings never intersect.
     let ok = true;
     for (const b of out) {
-      const minDist = radius + Math.max(b.w, b.d) / 2 + 2.0;
+      const minDist = radius + Math.max(b.w, b.d) / 2 + 1.8;
       if (Math.hypot(x - b.x, z - b.z) < minDist) {
         ok = false;
         break;
@@ -124,7 +124,7 @@ export function generateBuildings(seed: number): Building[] {
       z,
       w,
       d,
-      h: 3.0 + rand() * 1.8,
+      h: 3.8 + rand() * 2.4, // taller (3.8–6.2)
       rotY: Math.floor(rand() * 4) * (Math.PI / 2),
       color: BUILDING_COLORS[Math.floor(rand() * BUILDING_COLORS.length)],
       roof: ROOF_COLORS[Math.floor(rand() * ROOF_COLORS.length)],

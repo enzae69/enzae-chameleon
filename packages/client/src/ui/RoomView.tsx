@@ -16,7 +16,7 @@ function RoleAnnounce() {
   useEffect(() => {
     if (phase === "hiding" && prev.current !== "hiding") {
       setShow(true);
-      const t = window.setTimeout(() => setShow(false), 4200);
+      const t = window.setTimeout(() => setShow(false), 3000);
       prev.current = phase;
       return () => window.clearTimeout(t);
     }

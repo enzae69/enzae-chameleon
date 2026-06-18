@@ -16,6 +16,7 @@ import { attachKeyboard, getMoveIntent } from "./input";
 import { attachCameraInput, resetCamera, camState, CAM } from "./cameraInput";
 import { colliders } from "./colliders";
 import { PropMesh } from "./Prop";
+import Blaster from "./Blaster";
 
 const BODY_LEN = PLAYER_HEIGHT - 2 * PLAYER_RADIUS;
 const LIMIT = ARENA_HALF - PLAYER_RADIUS - 0.5;
@@ -24,6 +25,7 @@ const HEAD_Y = PLAYER_HEIGHT * 0.9; // camera focus / eye height
 
 export default function LocalController() {
   const seed = useGame((s) => s.mapSeed);
+  const selfTeam = useGame((s) => s.roster.find((r) => r.sessionId === s.selfId)?.team ?? "hider");
   const buildings = useMemo(() => generateBuildings(seed), [seed]);
   const group = useRef<THREE.Group>(null!);
   const mat = useRef<THREE.MeshStandardMaterial>(null!);
@@ -191,6 +193,7 @@ export default function LocalController() {
             <sphereGeometry args={[0.13, 8, 8]} />
             <meshStandardMaterial color="#0a0a0a" />
           </mesh>
+          {selfTeam === "seeker" && <Blaster />}
         </>
       )}
       {/* Own-player ground ring so you always know where you are. */}

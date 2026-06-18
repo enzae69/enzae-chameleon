@@ -6,7 +6,8 @@ import {
   ServerMessage,
   type InputPayload,
   type ChangeColorPayload,
-  type TagPayload,
+  type ShootPayload,
+  type WeaponType,
   type EmotePayload,
   type ChatPayload,
   type GamePhase,
@@ -16,10 +17,12 @@ import {
   COUNTDOWN_TO_START,
   PHASE_DURATION,
   TICK_RATE,
-  SEEKER_TAG_RANGE,
   COLOR_COPY_RANGE,
   DISGUISE_RANGE,
-  TAG_COOLDOWN_MS,
+  LASER_RANGE,
+  LASER_COOLDOWN_MS,
+  TASER_RANGE,
+  TASER_COOLDOWN_MS,
   DEFAULT_HIDER_COLOR,
   SEEKER_COLOR,
   ARENA_HALF,
@@ -72,7 +75,7 @@ export class GameRoom extends Room<GameState> {
   private inputs = new Map<string, InputState>();
   private tags = new Map<string, number>(); // sessionId -> eliminations this match
   private kickedIds = new Set<string>(); // sessions removed by the host (skip reconnection)
-  private lastTag = new Map<string, number>(); // sessionId -> last successful tag time (ms)
+  private lastShot = new Map<string, { laser: number; taser: number }>(); // per-weapon cooldown
   private buildings: Building[] = []; // collision geometry for the current map
   private matchStart = 0;
 
@@ -227,7 +230,7 @@ export class GameRoom extends Room<GameState> {
       if (p) this.clearDisguise(p);
     });
 
-    this.onMessage(ClientMessage.Tag, (client, msg: TagPayload) => this.handleTag(client, msg));
+    this.onMessage(ClientMessage.Shoot, (client, msg: ShootPayload) => this.handleShoot(client, msg));
 
     this.onMessage(ClientMessage.ToggleReady, (client) => {
       if (this.state.phase !== "waiting") return;
@@ -280,25 +283,61 @@ export class GameRoom extends Room<GameState> {
     });
   }
 
-  private handleTag(client: Client, msg: TagPayload) {
+  private handleShoot(client: Client, msg: ShootPayload) {
     if (this.state.phase !== "hunting") return;
     const seeker = this.state.players.get(client.sessionId);
     if (!seeker || seeker.team !== "seeker" || seeker.isEliminated) return;
-    const now = Date.now();
-    if (now - (this.lastTag.get(client.sessionId) || 0) < TAG_COOLDOWN_MS) return; // cooldown
-    if (!msg?.targetSessionId) return;
-    const target = this.state.players.get(msg.targetSessionId);
-    if (!target || target.team !== "hider" || target.isEliminated || !target.connected) return;
-    if (dist2D(seeker.x, seeker.z, target.x, target.z) > SEEKER_TAG_RANGE) return;
 
-    this.lastTag.set(client.sessionId, now);
-    target.isEliminated = true;
-    target.isTagged = true;
-    this.clearDisguise(target);
-    this.tags.set(client.sessionId, (this.tags.get(client.sessionId) || 0) + 1);
-    this.broadcast(ServerMessage.Tagged, { by: client.sessionId, target: target.sessionId });
-    this.broadcast(ServerMessage.Eliminated, { sessionId: target.sessionId });
-    this.checkWinConditions();
+    const weapon: WeaponType = msg?.weapon === "taser" ? "taser" : "laser";
+    const now = Date.now();
+    const cd = this.lastShot.get(client.sessionId) || { laser: 0, taser: 0 };
+    const cooldown = weapon === "laser" ? LASER_COOLDOWN_MS : TASER_COOLDOWN_MS;
+    if (now - cd[weapon] < cooldown) return; // weapon on cooldown
+    cd[weapon] = now; // cooldown starts on every shot (hit or miss)
+    this.lastShot.set(client.sessionId, cd);
+
+    const range = weapon === "laser" ? LASER_RANGE : TASER_RANGE;
+    // Auto-target the nearest alive hider within the weapon's range.
+    let target: Player | null = null;
+    let bestD = range;
+    this.state.players.forEach((p) => {
+      if (p.team !== "hider" || p.isEliminated || !p.connected) return;
+      const d = dist2D(seeker.x, seeker.z, p.x, p.z);
+      if (d <= bestD) {
+        bestD = d;
+        target = p;
+      }
+    });
+
+    let toX: number;
+    let toZ: number;
+    const hit = target !== null;
+    if (target) {
+      const t = target as Player;
+      toX = t.x;
+      toZ = t.z;
+      t.isEliminated = true;
+      t.isTagged = true;
+      this.clearDisguise(t);
+      this.tags.set(client.sessionId, (this.tags.get(client.sessionId) || 0) + 1);
+      this.broadcast(ServerMessage.Tagged, { by: client.sessionId, target: t.sessionId });
+      this.broadcast(ServerMessage.Eliminated, { sessionId: t.sessionId });
+    } else {
+      // Miss: beam shoots straight ahead from where the seeker faces.
+      toX = seeker.x + Math.sin(seeker.rotationY) * range;
+      toZ = seeker.z + Math.cos(seeker.rotationY) * range;
+    }
+
+    this.broadcast(ServerMessage.Shot, {
+      by: client.sessionId,
+      weapon,
+      fromX: seeker.x,
+      fromZ: seeker.z,
+      toX,
+      toZ,
+      hit,
+    });
+    if (hit) this.checkWinConditions();
   }
 
   private clearDisguise(p: Player) {
@@ -363,7 +402,7 @@ export class GameRoom extends Room<GameState> {
     this.state.mapSeed = this.newSeed();
     this.buildings = generateBuildings(this.state.mapSeed);
     this.tags.clear();
-    this.lastTag.clear();
+    this.lastShot.clear();
 
     const seekers = pickSeekers(connected.map((p) => p.sessionId));
     connected.forEach((p) => {

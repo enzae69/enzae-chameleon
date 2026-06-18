@@ -3,7 +3,8 @@ import { Client, Room } from "colyseus.js";
 import {
   ClientMessage,
   ServerMessage,
-  TAG_COOLDOWN_MS,
+  LASER_COOLDOWN_MS,
+  TASER_COOLDOWN_MS,
   type GamePhase,
   type Team,
   type RoomListing,
@@ -15,11 +16,13 @@ import {
   type NoticeEvent,
   type EmoteEvent,
   type ErrorEvent,
-  type TaggedEvent,
+  type ShotEvent,
+  type WeaponType,
 } from "@enzae/shared";
 import { SERVER_URL, HTTP_URL } from "../config";
 import { live, resetLive } from "../net/live";
 import { useUI } from "./uiStore";
+import { useEffects } from "./effectsStore";
 
 export interface ChatLine {
   id: number;
@@ -61,7 +64,8 @@ interface GameStore {
   phaseEndsAt: number;
   countdownEndsAt: number;
   mapSeed: number;
-  tagCooldownUntil: number;
+  laserCdUntil: number;
+  taserCdUntil: number;
 
   roster: RosterEntry[];
   chat: ChatLine[];
@@ -82,7 +86,7 @@ interface GameStore {
   copyColor: () => void;
   disguise: () => void;
   undisguise: () => void;
-  tag: (targetSessionId: string) => void;
+  shoot: (weapon: WeaponType) => void;
   toggleReady: () => void;
   requestStart: () => void;
   kick: (targetSessionId: string) => void;
@@ -192,8 +196,14 @@ export const useGame = create<GameStore>((set, get) => {
     room.onMessage(ServerMessage.MatchEnd, (m: MatchEndEvent) => set({ matchResult: m }));
     room.onMessage(ServerMessage.Emote, (m: EmoteEvent) => set({ lastEmote: { ...m, ts: Date.now() } }));
     room.onMessage(ServerMessage.Error, (m: ErrorEvent) => useUI.getState().showToast(m.message));
-    room.onMessage(ServerMessage.Tagged, (m: TaggedEvent) => {
-      if (m.by === room.sessionId) set({ tagCooldownUntil: Date.now() + TAG_COOLDOWN_MS });
+    room.onMessage(ServerMessage.Tagged, () => {});
+    room.onMessage(ServerMessage.Shot, (m: ShotEvent) => {
+      useEffects.getState().spawnShot({
+        weapon: m.weapon,
+        from: [m.fromX, 0, m.fromZ],
+        to: [m.toX, 0, m.toZ],
+        hit: m.hit,
+      });
     });
     room.onMessage(ServerMessage.Eliminated, () => {});
     room.onMessage(ServerMessage.Kicked, () => {
@@ -276,7 +286,8 @@ export const useGame = create<GameStore>((set, get) => {
     phaseEndsAt: 0,
     countdownEndsAt: 0,
     mapSeed: 1,
-    tagCooldownUntil: 0,
+    laserCdUntil: 0,
+    taserCdUntil: 0,
 
     roster: [],
     chat: [],
@@ -353,7 +364,14 @@ export const useGame = create<GameStore>((set, get) => {
     copyColor: () => get().room?.send(ClientMessage.CopyColor, {}),
     disguise: () => get().room?.send(ClientMessage.Disguise, {}),
     undisguise: () => get().room?.send(ClientMessage.Undisguise, {}),
-    tag: (targetSessionId) => get().room?.send(ClientMessage.Tag, { targetSessionId }),
+    shoot: (weapon) => {
+      const room = get().room;
+      if (!room) return;
+      room.send(ClientMessage.Shoot, { weapon });
+      const cd = weapon === "laser" ? LASER_COOLDOWN_MS : TASER_COOLDOWN_MS;
+      const until = Date.now() + cd;
+      set(weapon === "laser" ? { laserCdUntil: until } : { taserCdUntil: until });
+    },
     toggleReady: () => get().room?.send(ClientMessage.ToggleReady, {}),
     requestStart: () => get().room?.send(ClientMessage.RequestStart, {}),
     kick: (targetSessionId) => get().room?.send(ClientMessage.Kick, { targetSessionId }),

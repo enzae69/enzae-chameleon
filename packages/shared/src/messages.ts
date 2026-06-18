@@ -7,7 +7,7 @@ export const ClientMessage = {
   CopyColor: "copy_color",
   Disguise: "disguise",
   Undisguise: "undisguise",
-  Tag: "tag",
+  Shoot: "shoot",
   Emote: "emote",
   Chat: "chat",
   ToggleReady: "toggle_ready",
@@ -26,6 +26,7 @@ export const ServerMessage = {
   Emote: "emote",
   Notice: "notice",
   Kicked: "kicked",
+  Shot: "shot",
   Error: "error",
 } as const;
 export type ServerMessageType = (typeof ServerMessage)[keyof typeof ServerMessage];
@@ -42,8 +43,9 @@ export interface ChangeColorPayload {
 }
 // CopyColorPayload: empty; server resolves the nearest prop colour authoritatively.
 export interface CopyColorPayload {}
-export interface TagPayload {
-  targetSessionId: string;
+export type WeaponType = "laser" | "taser";
+export interface ShootPayload {
+  weapon: WeaponType;
 }
 export interface EmotePayload {
   emote: string;
@@ -59,6 +61,15 @@ export interface KickPayload {
 export interface TaggedEvent {
   by: string;
   target: string;
+}
+export interface ShotEvent {
+  by: string; // shooter sessionId
+  weapon: WeaponType;
+  fromX: number;
+  fromZ: number;
+  toX: number;
+  toZ: number;
+  hit: boolean;
 }
 export interface EliminatedEvent {
   sessionId: string;

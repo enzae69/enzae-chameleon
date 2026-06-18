@@ -1,11 +1,12 @@
 import { useRef, useState } from "react";
-import { useFrame, type ThreeEvent } from "@react-three/fiber";
+import { useFrame } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import * as THREE from "three";
 import { PLAYER_RADIUS, PLAYER_HEIGHT } from "@enzae/shared";
 import { live } from "../net/live";
 import { useGame } from "../store/gameStore";
 import { PropMesh } from "./Prop";
+import Blaster from "./Blaster";
 
 const BODY_LEN = PLAYER_HEIGHT - 2 * PLAYER_RADIUS;
 
@@ -69,31 +70,13 @@ function RemotePlayer({
     }
   });
 
-  const onTag = (e: ThreeEvent<PointerEvent>) => {
-    e.stopPropagation();
-    const gs = useGame.getState();
-    const snap = live.players.get(id);
-    const self = live.players.get(live.selfId);
-    if (gs.phase !== "hunting" || !snap || !self) return;
-    if (self.team !== "seeker" || self.isEliminated) return;
-    if (snap.team !== "hider" || snap.isEliminated) return;
-    gs.tag(id);
-  };
-
   return (
     <group ref={group}>
       {disguise ? (
-        <PropMesh
-          ref={mat}
-          kind={disguise.kind}
-          sx={disguise.sx}
-          sy={disguise.sy}
-          sz={disguise.sz}
-          onPointerDown={onTag}
-        />
+        <PropMesh ref={mat} kind={disguise.kind} sx={disguise.sx} sy={disguise.sy} sz={disguise.sz} />
       ) : (
         <>
-          <mesh position={[0, PLAYER_HEIGHT / 2, 0]} castShadow onPointerDown={onTag}>
+          <mesh position={[0, PLAYER_HEIGHT / 2, 0]} castShadow>
             <capsuleGeometry args={[PLAYER_RADIUS, BODY_LEN, 4, 12]} />
             <meshStandardMaterial ref={mat} roughness={0.6} />
           </mesh>
@@ -101,6 +84,7 @@ function RemotePlayer({
             <sphereGeometry args={[0.12, 8, 8]} />
             <meshStandardMaterial color="#0a0a0a" />
           </mesh>
+          {team === "seeker" && <Blaster />}
         </>
       )}
 
