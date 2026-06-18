@@ -76,6 +76,17 @@ async function main() {
 
   await gameServer.listen(PORT);
   console.log(`🦎 enzae Chameleon server listening on :${PORT}`);
+
+  // Keep the free-tier instance awake to avoid ~30–60s cold starts. Render
+  // injects RENDER_EXTERNAL_URL automatically; opt out with KEEP_ALIVE=false.
+  const keepAliveBase = process.env.KEEP_ALIVE_URL || process.env.RENDER_EXTERNAL_URL;
+  if (keepAliveBase && process.env.KEEP_ALIVE !== "false") {
+    const pingUrl = `${keepAliveBase.replace(/\/$/, "")}/health`;
+    setInterval(() => {
+      fetch(pingUrl).catch(() => {});
+    }, 14 * 60 * 1000).unref();
+    console.log(`[keep-alive] self-ping every 14m → ${pingUrl}`);
+  }
 }
 
 main().catch((err) => {
