@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import type { Building as BuildingData } from "@enzae/shared";
+import { BUILDING_WALL_T, BUILDING_DOOR_W, type Building as BuildingData } from "@enzae/shared";
 import { live } from "../net/live";
 import { registerCollider, unregisterCollider } from "./colliders";
 
-const T = 0.26; // wall thickness
-const DOOR_W = 1.7;
+const T = BUILDING_WALL_T; // wall thickness (shared with collision)
+const DOOR_W = BUILDING_DOOR_W; // door opening width (shared with collision)
 const DOOR_H = 2.25;
 
 function hash(x: number, z: number, salt = 0): number {

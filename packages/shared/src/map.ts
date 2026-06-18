@@ -1,4 +1,10 @@
-import { ARENA_HALF, COLOR_PALETTE } from "./constants";
+import {
+  ARENA_HALF,
+  COLOR_PALETTE,
+  PLAYER_RADIUS,
+  BUILDING_WALL_T,
+  BUILDING_DOOR_W,
+} from "./constants";
 
 /** Shape families a prop (and a disguised player) can take. */
 export type PropKind = "crate" | "barrel" | "bush" | "rock" | "pillar";
@@ -146,6 +152,80 @@ export function nearestObject(
     }
   }
   return best;
+}
+
+function clampN(v: number, lo: number, hi: number): number {
+  return v < lo ? lo : v > hi ? hi : v;
+}
+
+/** Push a circle (center px,pz, radius pr) out of an axis-aligned box. */
+function resolveBox(
+  px: number,
+  pz: number,
+  cx: number,
+  cz: number,
+  hx: number,
+  hz: number,
+  pr: number
+): [number, number] {
+  const dx = px - cx;
+  const dz = pz - cz;
+  const qx = clampN(dx, -hx, hx);
+  const qz = clampN(dz, -hz, hz);
+  let nx = dx - qx;
+  let nz = dz - qz;
+  const d2 = nx * nx + nz * nz;
+  if (d2 > pr * pr) return [px, pz];
+  if (d2 > 1e-9) {
+    const d = Math.sqrt(d2);
+    const push = pr - d;
+    return [px + (nx / d) * push, pz + (nz / d) * push];
+  }
+  // Center is inside the box: eject along the shallowest axis.
+  const ox = hx - Math.abs(dx);
+  const oz = hz - Math.abs(dz);
+  if (ox < oz) return [cx + Math.sign(dx || 1) * (hx + pr), pz];
+  return [px, cz + Math.sign(dz || 1) * (hz + pr)];
+}
+
+/** Resolve a player position out of all building walls (door openings stay passable). */
+export function collideBuildings(
+  x: number,
+  z: number,
+  buildings: Building[],
+  pr: number = PLAYER_RADIUS
+): { x: number; z: number } {
+  const T = BUILDING_WALL_T;
+  const DW = BUILDING_DOOR_W;
+  for (const b of buildings) {
+    const hw = b.w / 2;
+    const hd = b.d / 2;
+    const ca = Math.cos(b.rotY);
+    const sa = Math.sin(b.rotY);
+    // world → building-local
+    const dx = x - b.x;
+    const dz = z - b.z;
+    let lx = ca * dx - sa * dz;
+    let lz = sa * dx + ca * dz;
+
+    const segW = (b.w - DW) / 2;
+    const segX = (b.w + DW) / 4;
+    const walls: [number, number, number, number][] = [
+      [0, -hd, hw, T / 2], // back
+      [-hw, 0, T / 2, hd], // left
+      [hw, 0, T / 2, hd], // right
+      [-segX, hd, segW / 2, T / 2], // front-left of door
+      [segX, hd, segW / 2, T / 2], // front-right of door
+    ];
+    for (const [cx, cz, hx, hz] of walls) {
+      [lx, lz] = resolveBox(lx, lz, cx, cz, hx, hz, pr);
+    }
+
+    // building-local → world
+    x = b.x + ca * lx + sa * lz;
+    z = b.z - sa * lx + ca * lz;
+  }
+  return { x, z };
 }
 
 /** Color of the nearest prop within `range` of (x,z), or null if none. */

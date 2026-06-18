@@ -23,6 +23,11 @@ export const SEEKER_SPEED = 6.6; // seekers are slightly faster
 export const SEEKER_TAG_RANGE = 2.4;
 export const COLOR_COPY_RANGE = 3.0;
 export const DISGUISE_RANGE = 3.0; // must be near a prop to morph into it
+export const TAG_COOLDOWN_MS = 3000; // seeker cooldown after a successful tag
+
+// Building structure (shared so client rendering & collision match the server).
+export const BUILDING_WALL_T = 0.26; // wall thickness
+export const BUILDING_DOOR_W = 2.0; // door opening width
 
 // --- Rooms / matchmaking ---
 export const ROOM_MAX_PLAYERS = 12;

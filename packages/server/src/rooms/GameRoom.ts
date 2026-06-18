@@ -19,14 +19,17 @@ import {
   SEEKER_TAG_RANGE,
   COLOR_COPY_RANGE,
   DISGUISE_RANGE,
+  TAG_COOLDOWN_MS,
   DEFAULT_HIDER_COLOR,
   SEEKER_COLOR,
   ARENA_HALF,
   XP,
   generateMap,
+  generateBuildings,
   nearestObject,
   nearestObjectColor,
   levelFromTotalXp,
+  type Building,
 } from "@enzae/shared";
 import { verifyIdToken } from "../auth";
 import { getOrCreateProfile, awardMatchResults } from "../services/profile";
@@ -69,6 +72,8 @@ export class GameRoom extends Room<GameState> {
   private inputs = new Map<string, InputState>();
   private tags = new Map<string, number>(); // sessionId -> eliminations this match
   private kickedIds = new Set<string>(); // sessions removed by the host (skip reconnection)
+  private lastTag = new Map<string, number>(); // sessionId -> last successful tag time (ms)
+  private buildings: Building[] = []; // collision geometry for the current map
   private matchStart = 0;
 
   // ---------------------------------------------------------------- lifecycle
@@ -84,6 +89,7 @@ export class GameRoom extends Room<GameState> {
     state.kind = kind;
     state.maxPlayers = ROOM_MAX_PLAYERS;
     state.mapSeed = this.newSeed();
+    this.buildings = generateBuildings(state.mapSeed);
     this.setState(state);
 
     if (kind === "private") this.setPrivate(true);
@@ -278,11 +284,14 @@ export class GameRoom extends Room<GameState> {
     if (this.state.phase !== "hunting") return;
     const seeker = this.state.players.get(client.sessionId);
     if (!seeker || seeker.team !== "seeker" || seeker.isEliminated) return;
+    const now = Date.now();
+    if (now - (this.lastTag.get(client.sessionId) || 0) < TAG_COOLDOWN_MS) return; // cooldown
     if (!msg?.targetSessionId) return;
     const target = this.state.players.get(msg.targetSessionId);
     if (!target || target.team !== "hider" || target.isEliminated || !target.connected) return;
     if (dist2D(seeker.x, seeker.z, target.x, target.z) > SEEKER_TAG_RANGE) return;
 
+    this.lastTag.set(client.sessionId, now);
     target.isEliminated = true;
     target.isTagged = true;
     this.clearDisguise(target);
@@ -308,7 +317,7 @@ export class GameRoom extends Room<GameState> {
     this.state.players.forEach((p) => {
       const input = this.inputs.get(p.sessionId);
       if (!input) return;
-      integrate(p, input, dt, phase);
+      integrate(p, input, dt, phase, this.buildings);
       // Moving breaks a disguise — you must hold your pose to stay an object.
       if (p.disguiseKind && (Math.abs(input.moveX) > 0.01 || Math.abs(input.moveZ) > 0.01)) {
         this.clearDisguise(p);
@@ -352,7 +361,9 @@ export class GameRoom extends Room<GameState> {
     }
     this.lockRoom();
     this.state.mapSeed = this.newSeed();
+    this.buildings = generateBuildings(this.state.mapSeed);
     this.tags.clear();
+    this.lastTag.clear();
 
     const seekers = pickSeekers(connected.map((p) => p.sessionId));
     connected.forEach((p) => {

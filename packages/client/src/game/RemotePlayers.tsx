@@ -16,7 +16,17 @@ interface Disguise {
   sz: number;
 }
 
-function RemotePlayer({ id, label, team }: { id: string; label: string; team: string }) {
+function RemotePlayer({
+  id,
+  label,
+  team,
+  hideName,
+}: {
+  id: string;
+  label: string;
+  team: string;
+  hideName: boolean;
+}) {
   const group = useRef<THREE.Group>(null!);
   const mat = useRef<THREE.MeshStandardMaterial>(null!);
   const init = useRef(false);
@@ -94,8 +104,8 @@ function RemotePlayer({ id, label, team }: { id: string; label: string; team: st
         </>
       )}
 
-      {/* Hide the floating name when disguised — that's the whole point. */}
-      {!disguise && (
+      {/* Hide the floating name when disguised, or entirely for the seeker. */}
+      {!disguise && !hideName && (
         <Html
           position={[0, PLAYER_HEIGHT + 0.5, 0]}
           center
@@ -118,12 +128,20 @@ function RemotePlayer({ id, label, team }: { id: string; label: string; team: st
 export default function RemotePlayers() {
   const roster = useGame((s) => s.roster);
   const selfId = useGame((s) => s.selfId);
+  // Seekers get no name tags — they have to actually spot the hiders.
+  const selfIsSeeker = roster.find((r) => r.sessionId === selfId)?.team === "seeker";
   return (
     <>
       {roster
         .filter((r) => r.sessionId !== selfId)
         .map((r) => (
-          <RemotePlayer key={r.sessionId} id={r.sessionId} label={`${r.name} · ${r.level}`} team={r.team} />
+          <RemotePlayer
+            key={r.sessionId}
+            id={r.sessionId}
+            label={`${r.name} · ${r.level}`}
+            team={r.team}
+            hideName={selfIsSeeker}
+          />
         ))}
     </>
   );

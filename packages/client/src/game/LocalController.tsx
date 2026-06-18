@@ -1,7 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
-import { PLAYER_RADIUS, PLAYER_HEIGHT, HIDER_SPEED, SEEKER_SPEED, ARENA_HALF } from "@enzae/shared";
+import {
+  PLAYER_RADIUS,
+  PLAYER_HEIGHT,
+  HIDER_SPEED,
+  SEEKER_SPEED,
+  ARENA_HALF,
+  generateBuildings,
+  collideBuildings,
+} from "@enzae/shared";
 import { live } from "../net/live";
 import { useGame } from "../store/gameStore";
 import { attachKeyboard, getMoveIntent } from "./input";
@@ -15,6 +23,8 @@ const SEND_INTERVAL = 1 / 20;
 const HEAD_Y = PLAYER_HEIGHT * 0.9; // camera focus / eye height
 
 export default function LocalController() {
+  const seed = useGame((s) => s.mapSeed);
+  const buildings = useMemo(() => generateBuildings(seed), [seed]);
   const group = useRef<THREE.Group>(null!);
   const mat = useRef<THREE.MeshStandardMaterial>(null!);
   const pos = useRef({ x: 0, z: 0, yaw: 0 });
@@ -80,6 +90,11 @@ export default function LocalController() {
 
     pos.current.x = THREE.MathUtils.clamp(pos.current.x + mx * speed * dt, -LIMIT, LIMIT);
     pos.current.z = THREE.MathUtils.clamp(pos.current.z + mz * speed * dt, -LIMIT, LIMIT);
+    if (buildings.length) {
+      const c = collideBuildings(pos.current.x, pos.current.z, buildings);
+      pos.current.x = c.x;
+      pos.current.z = c.z;
+    }
     if (len > 0.01) pos.current.yaw = Math.atan2(mx, mz);
 
     // Reconcile with the authoritative server position.

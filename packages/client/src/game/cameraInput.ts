@@ -83,7 +83,7 @@ export function attachCameraInput(el: HTMLElement): () => void {
       // drag up → tilt up over the character; flip with the invert-Y toggle.
       camState.yaw -= dx * CAM.ROT_SPEED;
       const vy = camState.invertY ? -dy : dy;
-      camState.pitch = clamp(camState.pitch - vy * CAM.ROT_SPEED, CAM.MIN_PITCH, CAM.MAX_PITCH);
+      camState.pitch = clamp(camState.pitch + vy * CAM.ROT_SPEED, CAM.MIN_PITCH, CAM.MAX_PITCH);
     }
   };
 

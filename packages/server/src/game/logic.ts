@@ -5,6 +5,8 @@ import {
   SEEKER_SPEED,
   SEEKER_RATIO,
   Player,
+  collideBuildings,
+  type Building,
   type GamePhase,
 } from "@enzae/shared";
 
@@ -34,7 +36,13 @@ export function speedFor(team: string): number {
 }
 
 /** Integrate one player's movement for a tick (authoritative). */
-export function integrate(player: Player, input: InputState, dt: number, phase: GamePhase): void {
+export function integrate(
+  player: Player,
+  input: InputState,
+  dt: number,
+  phase: GamePhase,
+  buildings: Building[] = []
+): void {
   player.rotationY = input.rotationY;
   if (!canMove(player, phase)) return;
 
@@ -47,8 +55,15 @@ export function integrate(player: Player, input: InputState, dt: number, phase: 
   }
   const speed = speedFor(player.team);
   const limit = ARENA_HALF - PLAYER_RADIUS - 0.5;
-  player.x = clamp(player.x + mx * speed * dt, -limit, limit);
-  player.z = clamp(player.z + mz * speed * dt, -limit, limit);
+  let nx = clamp(player.x + mx * speed * dt, -limit, limit);
+  let nz = clamp(player.z + mz * speed * dt, -limit, limit);
+  if (buildings.length) {
+    const r = collideBuildings(nx, nz, buildings);
+    nx = r.x;
+    nz = r.z;
+  }
+  player.x = nx;
+  player.z = nz;
 }
 
 /** Randomly choose which sessions become seekers (at least one). */

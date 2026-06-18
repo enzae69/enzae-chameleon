@@ -3,6 +3,7 @@ import { Client, Room } from "colyseus.js";
 import {
   ClientMessage,
   ServerMessage,
+  TAG_COOLDOWN_MS,
   type GamePhase,
   type Team,
   type RoomListing,
@@ -14,6 +15,7 @@ import {
   type NoticeEvent,
   type EmoteEvent,
   type ErrorEvent,
+  type TaggedEvent,
 } from "@enzae/shared";
 import { SERVER_URL, HTTP_URL } from "../config";
 import { live, resetLive } from "../net/live";
@@ -59,6 +61,7 @@ interface GameStore {
   phaseEndsAt: number;
   countdownEndsAt: number;
   mapSeed: number;
+  tagCooldownUntil: number;
 
   roster: RosterEntry[];
   chat: ChatLine[];
@@ -189,7 +192,9 @@ export const useGame = create<GameStore>((set, get) => {
     room.onMessage(ServerMessage.MatchEnd, (m: MatchEndEvent) => set({ matchResult: m }));
     room.onMessage(ServerMessage.Emote, (m: EmoteEvent) => set({ lastEmote: { ...m, ts: Date.now() } }));
     room.onMessage(ServerMessage.Error, (m: ErrorEvent) => useUI.getState().showToast(m.message));
-    room.onMessage(ServerMessage.Tagged, () => {});
+    room.onMessage(ServerMessage.Tagged, (m: TaggedEvent) => {
+      if (m.by === room.sessionId) set({ tagCooldownUntil: Date.now() + TAG_COOLDOWN_MS });
+    });
     room.onMessage(ServerMessage.Eliminated, () => {});
     room.onMessage(ServerMessage.Kicked, () => {
       kicked = true;
@@ -271,6 +276,7 @@ export const useGame = create<GameStore>((set, get) => {
     phaseEndsAt: 0,
     countdownEndsAt: 0,
     mapSeed: 1,
+    tagCooldownUntil: 0,
 
     roster: [],
     chat: [],

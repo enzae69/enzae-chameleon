@@ -92,11 +92,22 @@ export default function HUD() {
   const disguise = useGame((s) => s.disguise);
   const undisguise = useGame((s) => s.undisguise);
   const tag = useGame((s) => s.tag);
+  const tagCooldownUntil = useGame((s) => s.tagCooldownUntil);
   const sendEmote = useGame((s) => s.sendEmote);
   const showToast = useUI((s) => s.showToast);
 
   const [chatOpen, setChatOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [, force] = useState(0);
+
+  // Tick while the tag cooldown is counting down so the button updates.
+  const cdLeft = Math.max(0, tagCooldownUntil - Date.now());
+  useEffect(() => {
+    if (cdLeft <= 0) return;
+    const t = window.setInterval(() => force((n) => n + 1), 120);
+    return () => window.clearInterval(t);
+  }, [cdLeft > 0]);
+  const cdSec = Math.ceil(cdLeft / 1000);
 
   const self = roster.find((r) => r.sessionId === selfId);
   const team = self?.team ?? "hider";
@@ -105,6 +116,7 @@ export default function HUD() {
   const aliveHiders = roster.filter((r) => r.team === "hider" && !r.isEliminated).length;
 
   const tagNearest = () => {
+    if (cdLeft > 0) return; // cooldown active
     let best: string | null = null;
     let bestD = SEEKER_TAG_RANGE;
     live.players.forEach((p) => {
@@ -196,8 +208,12 @@ export default function HUD() {
           </div>
 
           {showSeekerTools && (
-            <button className="btn-danger px-5 py-4 text-base" onClick={tagNearest}>
-              🎯 Markieren
+            <button
+              className={`px-5 py-4 text-base ${cdLeft > 0 ? "btn-ghost opacity-60" : "btn-danger"}`}
+              onClick={tagNearest}
+              disabled={cdLeft > 0}
+            >
+              {cdLeft > 0 ? `⏳ ${cdSec}s` : "🎯 Markieren"}
             </button>
           )}
 
