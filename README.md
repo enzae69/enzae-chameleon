@@ -1,8 +1,10 @@
 # 🦎 enzae Chameleon
 
 Ein 3D-Multiplayer-**Versteck-Spiel** fürs Web. **Hider** tarnen sich, indem sie
-ihre Farbe ändern und die Farbe von Objekten kopieren – **Seeker** jagen,
-markieren und eliminieren sie in Echtzeit.
+ihre Farbe bemalen, die Farbe von Objekten kopieren **oder sich direkt in ein
+Objekt verwandeln** (Kiste, Fass, Busch, Fels, Säule) – **Seeker** jagen,
+markieren und eliminieren sie in Echtzeit. Die Arena enthält **Gebäude** und
+Requisiten als Versteckmöglichkeiten.
 
 > Läuft sofort im **Gastmodus** (ohne jegliche Konfiguration). Sobald du dein
 > eigenes **Firebase**-Projekt einträgst, schalten sich Konten, XP/Level,
@@ -15,7 +17,8 @@ markieren und eliminieren sie in Echtzeit.
 - **3D-Echtzeit-Gameplay** (Three.js / react-three-fiber), Desktop **&** Mobile (Touch-Joystick)
 - **Lobby & Matchmaking**: Schnelles Spiel, öffentliche Räume, private Räume mit Code/Passwort
 - **Teams**: Hider vs. Seeker, automatische Zuteilung, Spielphasen (Verstecken → Jagd → Ende)
-- **Tarn-Mechanik**: Farbe wechseln + Objektfarben kopieren (serverseitig validiert)
+- **Tarn-Mechanik**: Farbe bemalen, Objektfarbe kopieren **& in Objekte verwandeln** (serverseitig validiert; Bewegung bricht die Tarnung)
+- **Arena**: Gebäude + verschiedene Requisiten-Formen (Kiste/Fass/Busch/Fels/Säule)
 - **Accounts**: Registrierung, Login, Google, **Gastmodus** (alles via Firebase Auth)
 - **Fortschritt**: XP, Level, Statistiken, **Rangliste** (serverautoritativ – nicht cheatbar)
 - **Kosmetik**: Hider-Farben ausrüsten (Skins/Emotes als Grundgerüst angelegt)
@@ -99,6 +102,7 @@ Auf „**Als Gast spielen**" klicken → „**Schnelles Spiel**". Öffne das Spi
 | Aktion | Desktop | Mobile |
 |---|---|---|
 | Bewegen | WASD / Pfeiltasten | Joystick (unten links) |
+| Verwandeln (in nächstes Objekt) | 🪄-Button (still halten!) | 🪄-Button |
 | Tarnen (Objektfarbe kopieren) | 🦎-Button | 🦎-Button |
 | Farbe wählen | 🎨-Button | 🎨-Button |
 | Markieren (Seeker) | Hider anklicken **oder** 🎯-Button | 🎯-Button |

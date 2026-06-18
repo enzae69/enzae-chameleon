@@ -88,6 +88,8 @@ export default function HUD() {
   const selfId = useGame((s) => s.selfId);
   const copyColor = useGame((s) => s.copyColor);
   const changeColor = useGame((s) => s.changeColor);
+  const disguise = useGame((s) => s.disguise);
+  const undisguise = useGame((s) => s.undisguise);
   const tag = useGame((s) => s.tag);
   const sendEmote = useGame((s) => s.sendEmote);
   const showToast = useUI((s) => s.showToast);
@@ -98,6 +100,7 @@ export default function HUD() {
   const self = roster.find((r) => r.sessionId === selfId);
   const team = self?.team ?? "hider";
   const eliminated = self?.isEliminated ?? false;
+  const disguised = self?.disguised ?? false;
   const aliveHiders = roster.filter((r) => r.team === "hider" && !r.isEliminated).length;
 
   const tagNearest = () => {
@@ -145,6 +148,7 @@ export default function HUD() {
             {team === "seeker" ? "🔴 Seeker" : "🟢 Hider"}
           </span>
           {eliminated && <span className="ml-2 text-white/50">· raus (Zuschauer)</span>}
+          {disguised && <span className="ml-2 text-amber-300">· 🪄 verwandelt – nicht bewegen!</span>}
           <span className="ml-3 text-white/60">🫥 {aliveHiders} übrig</span>
         </div>
       </div>
@@ -205,9 +209,22 @@ export default function HUD() {
               >
                 🎨
               </button>
-              <button className="btn-primary px-5 py-4 text-base" onClick={copyColor}>
+              <button className="btn-ghost px-4 py-4" onClick={copyColor} title="Farbe vom nächsten Objekt kopieren">
                 🦎 Tarnen
               </button>
+              {disguised ? (
+                <button className="btn-primary px-5 py-4 text-base" onClick={undisguise}>
+                  🙅 Enttarnen
+                </button>
+              ) : (
+                <button
+                  className="btn-primary px-5 py-4 text-base"
+                  onClick={disguise}
+                  title="In das nächste Objekt verwandeln (still halten!)"
+                >
+                  🪄 Verwandeln
+                </button>
+              )}
             </div>
           )}
         </div>

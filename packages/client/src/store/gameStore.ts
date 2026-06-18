@@ -36,6 +36,7 @@ export interface RosterEntry {
   isEliminated: boolean;
   connected: boolean;
   level: number;
+  disguised: boolean;
 }
 
 export interface JoinAuth {
@@ -76,6 +77,8 @@ interface GameStore {
   sendInput: (p: InputPayload) => void;
   changeColor: (color: string) => void;
   copyColor: () => void;
+  disguise: () => void;
+  undisguise: () => void;
   tag: (targetSessionId: string) => void;
   toggleReady: () => void;
   requestStart: () => void;
@@ -111,6 +114,7 @@ export const useGame = create<GameStore>((set, get) => {
         isEliminated: p.isEliminated,
         connected: p.connected,
         level: p.level,
+        disguised: Boolean(p.disguiseKind),
       });
     });
     set({
@@ -149,6 +153,10 @@ export const useGame = create<GameStore>((set, get) => {
           isTagged: p.isTagged,
           level: p.level,
           skinId: p.skinId,
+          disguiseKind: p.disguiseKind || "",
+          disguiseSx: p.disguiseSx ?? 1,
+          disguiseSy: p.disguiseSy ?? 1,
+          disguiseSz: p.disguiseSz ?? 1,
         };
         live.players.set(id, snap);
       });
@@ -289,6 +297,8 @@ export const useGame = create<GameStore>((set, get) => {
     sendInput: (p) => get().room?.send(ClientMessage.Input, p),
     changeColor: (color) => get().room?.send(ClientMessage.ChangeColor, { color }),
     copyColor: () => get().room?.send(ClientMessage.CopyColor, {}),
+    disguise: () => get().room?.send(ClientMessage.Disguise, {}),
+    undisguise: () => get().room?.send(ClientMessage.Undisguise, {}),
     tag: (targetSessionId) => get().room?.send(ClientMessage.Tag, { targetSessionId }),
     toggleReady: () => get().room?.send(ClientMessage.ToggleReady, {}),
     requestStart: () => get().room?.send(ClientMessage.RequestStart, {}),

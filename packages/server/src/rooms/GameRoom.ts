@@ -18,11 +18,13 @@ import {
   TICK_RATE,
   SEEKER_TAG_RANGE,
   COLOR_COPY_RANGE,
+  DISGUISE_RANGE,
   DEFAULT_HIDER_COLOR,
   SEEKER_COLOR,
   ARENA_HALF,
   XP,
   generateMap,
+  nearestObject,
   nearestObjectColor,
   levelFromTotalXp,
 } from "@enzae/shared";
@@ -190,6 +192,27 @@ export class GameRoom extends Room<GameState> {
       else client.send(ServerMessage.Notice, { text: "Kein Objekt in der Nähe." });
     });
 
+    this.onMessage(ClientMessage.Disguise, (client) => {
+      const p = this.state.players.get(client.sessionId);
+      if (!p || p.team !== "hider" || p.isEliminated) return;
+      const objects = generateMap(this.state.mapSeed);
+      const o = nearestObject(objects, p.x, p.z, DISGUISE_RANGE);
+      if (!o) {
+        client.send(ServerMessage.Notice, { text: "Kein Objekt in der Nähe zum Verwandeln." });
+        return;
+      }
+      p.disguiseKind = o.kind;
+      p.disguiseSx = o.sx;
+      p.disguiseSy = o.sy;
+      p.disguiseSz = o.sz;
+      p.color = o.color;
+    });
+
+    this.onMessage(ClientMessage.Undisguise, (client) => {
+      const p = this.state.players.get(client.sessionId);
+      if (p) this.clearDisguise(p);
+    });
+
     this.onMessage(ClientMessage.Tag, (client, msg: TagPayload) => this.handleTag(client, msg));
 
     this.onMessage(ClientMessage.ToggleReady, (client) => {
@@ -236,10 +259,19 @@ export class GameRoom extends Room<GameState> {
 
     target.isEliminated = true;
     target.isTagged = true;
+    this.clearDisguise(target);
     this.tags.set(client.sessionId, (this.tags.get(client.sessionId) || 0) + 1);
     this.broadcast(ServerMessage.Tagged, { by: client.sessionId, target: target.sessionId });
     this.broadcast(ServerMessage.Eliminated, { sessionId: target.sessionId });
     this.checkWinConditions();
+  }
+
+  private clearDisguise(p: Player) {
+    if (!p.disguiseKind) return;
+    p.disguiseKind = "";
+    p.disguiseSx = 1;
+    p.disguiseSy = 1;
+    p.disguiseSz = 1;
   }
 
   // ---------------------------------------------------------------- simulation
@@ -249,7 +281,12 @@ export class GameRoom extends Room<GameState> {
 
     this.state.players.forEach((p) => {
       const input = this.inputs.get(p.sessionId);
-      if (input) integrate(p, input, dt, phase);
+      if (!input) return;
+      integrate(p, input, dt, phase);
+      // Moving breaks a disguise — you must hold your pose to stay an object.
+      if (p.disguiseKind && (Math.abs(input.moveX) > 0.01 || Math.abs(input.moveZ) > 0.01)) {
+        this.clearDisguise(p);
+      }
     });
 
     const now = Date.now();
@@ -296,6 +333,7 @@ export class GameRoom extends Room<GameState> {
       p.isEliminated = false;
       p.isTagged = false;
       p.isReady = false;
+      this.clearDisguise(p);
       p.team = seekers.has(p.sessionId) ? "seeker" : "hider";
       const spawn = p.team === "seeker" ? { x: 0, z: 0 } : this.randomSpawn();
       p.x = spawn.x;
@@ -367,6 +405,7 @@ export class GameRoom extends Room<GameState> {
       p.isEliminated = false;
       p.isTagged = false;
       p.isReady = false;
+      this.clearDisguise(p);
     });
     this.unlockRoom();
     this.updateMetadata();

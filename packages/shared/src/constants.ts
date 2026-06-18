@@ -22,6 +22,7 @@ export const SEEKER_SPEED = 6.6; // seekers are slightly faster
 // --- Interaction ranges ---
 export const SEEKER_TAG_RANGE = 2.4;
 export const COLOR_COPY_RANGE = 3.0;
+export const DISGUISE_RANGE = 3.0; // must be near a prop to morph into it
 
 // --- Rooms / matchmaking ---
 export const ROOM_MAX_PLAYERS = 12;

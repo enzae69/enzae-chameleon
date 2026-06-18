@@ -5,6 +5,8 @@ export const ClientMessage = {
   Input: "input",
   ChangeColor: "change_color",
   CopyColor: "copy_color",
+  Disguise: "disguise",
+  Undisguise: "undisguise",
   Tag: "tag",
   Emote: "emote",
   Chat: "chat",

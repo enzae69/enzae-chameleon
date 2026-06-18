@@ -1,10 +1,18 @@
 import { useMemo } from "react";
-import { generateMap, ARENA_SIZE, ARENA_HALF, WALL_THICKNESS } from "@enzae/shared";
+import {
+  generateMap,
+  generateBuildings,
+  ARENA_SIZE,
+  ARENA_HALF,
+  WALL_THICKNESS,
+} from "@enzae/shared";
+import { PropMesh } from "./Prop";
 
 const WALL_H = 2.2;
 
 export default function Arena({ seed }: { seed: number }) {
   const objects = useMemo(() => generateMap(seed), [seed]);
+  const buildings = useMemo(() => generateBuildings(seed), [seed]);
 
   const walls = [
     { x: 0, z: -ARENA_HALF, w: ARENA_SIZE + WALL_THICKNESS, d: WALL_THICKNESS },
@@ -29,11 +37,25 @@ export default function Arena({ seed }: { seed: number }) {
         </mesh>
       ))}
 
+      {/* Buildings: wall block + roof slab */}
+      {buildings.map((b) => (
+        <group key={b.id} position={[b.x, 0, b.z]}>
+          <mesh position={[0, b.h / 2, 0]} castShadow receiveShadow>
+            <boxGeometry args={[b.w, b.h, b.d]} />
+            <meshStandardMaterial color={b.color} />
+          </mesh>
+          <mesh position={[0, b.h + 0.15, 0]} castShadow>
+            <boxGeometry args={[b.w + 0.6, 0.3, b.d + 0.6]} />
+            <meshStandardMaterial color={b.roof} />
+          </mesh>
+        </group>
+      ))}
+
+      {/* Props of varied shapes */}
       {objects.map((o) => (
-        <mesh key={o.id} position={[o.x, o.sy / 2, o.z]} castShadow>
-          <boxGeometry args={[o.sx, o.sy, o.sz]} />
-          <meshStandardMaterial color={o.color} />
-        </mesh>
+        <group key={o.id} position={[o.x, 0, o.z]}>
+          <PropMesh kind={o.kind} sx={o.sx} sy={o.sy} sz={o.sz} color={o.color} />
+        </group>
       ))}
     </group>
   );

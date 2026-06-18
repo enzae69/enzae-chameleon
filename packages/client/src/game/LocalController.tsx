@@ -1,10 +1,11 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { PLAYER_RADIUS, PLAYER_HEIGHT, HIDER_SPEED, SEEKER_SPEED, ARENA_HALF } from "@enzae/shared";
 import { live } from "../net/live";
 import { useGame } from "../store/gameStore";
 import { attachKeyboard, getMoveIntent } from "./input";
+import { PropMesh } from "./Prop";
 
 const BODY_LEN = PLAYER_HEIGHT - 2 * PLAYER_RADIUS;
 const LIMIT = ARENA_HALF - PLAYER_RADIUS - 0.5;
@@ -19,6 +20,10 @@ export default function LocalController() {
   const inited = useRef(false);
   const desired = useRef(new THREE.Vector3());
   const lookAt = useRef(new THREE.Vector3());
+  const lastKind = useRef("");
+  const [disguise, setDisguise] = useState<{ kind: string; sx: number; sy: number; sz: number } | null>(
+    null
+  );
 
   useEffect(() => attachKeyboard(), []);
 
@@ -74,6 +79,15 @@ export default function LocalController() {
     live.selfX = pos.current.x;
     live.selfZ = pos.current.z;
 
+    if (self && self.disguiseKind !== lastKind.current) {
+      lastKind.current = self.disguiseKind;
+      setDisguise(
+        self.disguiseKind
+          ? { kind: self.disguiseKind, sx: self.disguiseSx, sy: self.disguiseSy, sz: self.disguiseSz }
+          : null
+      );
+    }
+
     if (mat.current && self) {
       mat.current.color.set(self.color);
       mat.current.transparent = eliminated;
@@ -94,14 +108,27 @@ export default function LocalController() {
 
   return (
     <group ref={group}>
-      <mesh position={[0, PLAYER_HEIGHT / 2, 0]} castShadow>
-        <capsuleGeometry args={[PLAYER_RADIUS, BODY_LEN, 4, 12]} />
-        <meshStandardMaterial ref={mat} />
-      </mesh>
-      <mesh position={[0, PLAYER_HEIGHT * 0.62, PLAYER_RADIUS]}>
-        <sphereGeometry args={[0.13, 8, 8]} />
-        <meshStandardMaterial color="#0a0a0a" />
-      </mesh>
+      {disguise ? (
+        <PropMesh
+          ref={mat}
+          kind={disguise.kind}
+          sx={disguise.sx}
+          sy={disguise.sy}
+          sz={disguise.sz}
+        />
+      ) : (
+        <>
+          <mesh position={[0, PLAYER_HEIGHT / 2, 0]} castShadow>
+            <capsuleGeometry args={[PLAYER_RADIUS, BODY_LEN, 4, 12]} />
+            <meshStandardMaterial ref={mat} />
+          </mesh>
+          <mesh position={[0, PLAYER_HEIGHT * 0.62, PLAYER_RADIUS]}>
+            <sphereGeometry args={[0.13, 8, 8]} />
+            <meshStandardMaterial color="#0a0a0a" />
+          </mesh>
+        </>
+      )}
+      {/* Own-player ground ring so you always know where you are. */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]}>
         <ringGeometry args={[PLAYER_RADIUS + 0.15, PLAYER_RADIUS + 0.33, 24]} />
         <meshBasicMaterial color="#ffffff" transparent opacity={0.55} />

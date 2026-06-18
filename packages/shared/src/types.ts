@@ -74,6 +74,10 @@ export interface PlayerSnapshot {
   isTagged: boolean;
   level: number;
   skinId: string;
+  disguiseKind: string; // "" = not disguised
+  disguiseSx: number;
+  disguiseSy: number;
+  disguiseSz: number;
 }
 
 export interface CosmeticItem {

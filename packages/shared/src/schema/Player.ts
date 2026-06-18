@@ -20,4 +20,9 @@ export class Player extends Schema {
   @type("boolean") connected = true;
   @type("number") level = 1;
   @type("string") skinId = "default";
+  // Disguise: when disguiseKind is non-empty the player renders as that prop.
+  @type("string") disguiseKind = "";
+  @type("number") disguiseSx = 1;
+  @type("number") disguiseSy = 1;
+  @type("number") disguiseSz = 1;
 }
