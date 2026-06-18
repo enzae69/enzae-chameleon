@@ -83,9 +83,9 @@ function RemotePlayer({ id, label, team }: { id: string; label: string; team: st
         />
       ) : (
         <>
-          <mesh position={[0, PLAYER_HEIGHT / 2, 0]} onPointerDown={onTag}>
+          <mesh position={[0, PLAYER_HEIGHT / 2, 0]} castShadow onPointerDown={onTag}>
             <capsuleGeometry args={[PLAYER_RADIUS, BODY_LEN, 4, 12]} />
-            <meshStandardMaterial ref={mat} />
+            <meshStandardMaterial ref={mat} roughness={0.6} />
           </mesh>
           <mesh position={[0, PLAYER_HEIGHT * 0.62, PLAYER_RADIUS]}>
             <sphereGeometry args={[0.12, 8, 8]} />
