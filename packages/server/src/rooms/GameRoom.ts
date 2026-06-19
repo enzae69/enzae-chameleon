@@ -297,17 +297,28 @@ export class GameRoom extends Room<GameState> {
     this.lastShot.set(client.sessionId, cd);
 
     const range = weapon === "laser" ? LASER_RANGE : TASER_RANGE;
-    // Auto-target the nearest alive hider within the weapon's range.
+    const validHider = (p?: Player): p is Player =>
+      !!p && p.team === "hider" && !p.isEliminated && p.connected;
+
+    // An aimed shot (tap a target) hits that specific hider if it's in range;
+    // otherwise we auto-target the nearest hider in range.
+    const requested = msg?.targetSessionId
+      ? this.state.players.get(msg.targetSessionId)
+      : undefined;
     let target: Player | null = null;
-    let bestD = range;
-    this.state.players.forEach((p) => {
-      if (p.team !== "hider" || p.isEliminated || !p.connected) return;
-      const d = dist2D(seeker.x, seeker.z, p.x, p.z);
-      if (d <= bestD) {
-        bestD = d;
-        target = p;
-      }
-    });
+    if (validHider(requested) && dist2D(seeker.x, seeker.z, requested.x, requested.z) <= range) {
+      target = requested;
+    } else if (!msg?.targetSessionId) {
+      let bestD = range;
+      this.state.players.forEach((p) => {
+        if (!validHider(p)) return;
+        const d = dist2D(seeker.x, seeker.z, p.x, p.z);
+        if (d <= bestD) {
+          bestD = d;
+          target = p;
+        }
+      });
+    }
 
     let toX: number;
     let toZ: number;
@@ -322,6 +333,14 @@ export class GameRoom extends Room<GameState> {
       this.tags.set(client.sessionId, (this.tags.get(client.sessionId) || 0) + 1);
       this.broadcast(ServerMessage.Tagged, { by: client.sessionId, target: t.sessionId });
       this.broadcast(ServerMessage.Eliminated, { sessionId: t.sessionId });
+    } else if (validHider(requested)) {
+      // Missed an aimed shot (out of range): beam still points at them, capped to range.
+      const dx = requested.x - seeker.x;
+      const dz = requested.z - seeker.z;
+      const dd = Math.hypot(dx, dz) || 1;
+      const reach = Math.min(dd, range);
+      toX = seeker.x + (dx / dd) * reach;
+      toZ = seeker.z + (dz / dd) * reach;
     } else {
       // Miss: beam shoots straight ahead from where the seeker faces.
       toX = seeker.x + Math.sin(seeker.rotationY) * range;

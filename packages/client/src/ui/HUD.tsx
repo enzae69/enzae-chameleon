@@ -194,22 +194,24 @@ export default function HUD() {
           </div>
 
           {showSeekerTools && (
-            <div className="flex items-end gap-2">
+            <div className="flex flex-col items-end gap-2">
+              {/* Laser is aimed by tapping a suspect — this is just its status. */}
+              <div
+                className={`glass rounded-full px-3 py-1.5 text-xs font-semibold ${
+                  laserCd > 0 ? "text-white/50" : "text-red-300"
+                }`}
+              >
+                {laserCd > 0
+                  ? `⚡ Laser lädt… ${(laserCd / 1000).toFixed(1)}s`
+                  : "⚡ Laser bereit – tippe einen Verdächtigen an"}
+              </div>
               <button
-                className={`px-4 py-4 text-base ${taserCd > 0 ? "btn-ghost opacity-60" : "btn-ghost"}`}
+                className={`px-5 py-4 text-base ${taserCd > 0 ? "btn-ghost opacity-60" : "btn-danger"}`}
                 onClick={() => shoot("taser")}
                 disabled={taserCd > 0}
                 title="Taser – Nahbereich, kurzer Cooldown"
               >
                 {taserCd > 0 ? `🔌 ${(taserCd / 1000).toFixed(1)}s` : "🔌 Taser"}
-              </button>
-              <button
-                className={`px-5 py-4 text-base ${laserCd > 0 ? "btn-ghost opacity-60" : "btn-danger"}`}
-                onClick={() => shoot("laser")}
-                disabled={laserCd > 0}
-                title="Laser-Blitz – große Reichweite"
-              >
-                {laserCd > 0 ? `⚡ ${(laserCd / 1000).toFixed(1)}s` : "⚡ Laser"}
               </button>
             </div>
           )}
