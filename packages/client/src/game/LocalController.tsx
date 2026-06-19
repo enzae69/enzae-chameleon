@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import {
@@ -15,6 +15,7 @@ import { useGame } from "../store/gameStore";
 import { attachKeyboard, getMoveIntent } from "./input";
 import { attachCameraInput, resetCamera, camState, CAM } from "./cameraInput";
 import { colliders } from "./colliders";
+import { targets, ownerSessionId } from "./targets";
 import { PropMesh } from "./Prop";
 import Blaster from "./Blaster";
 
@@ -45,13 +46,42 @@ export default function LocalController() {
   const camDesired = useRef(new THREE.Vector3());
   const lookAt = useRef(new THREE.Vector3());
 
-  const { gl } = useThree();
+  const { gl, camera } = useThree();
+  const tapRay = useRef(new THREE.Raycaster());
+  const ndc = useRef(new THREE.Vector2());
+
+  // Seeker fires the laser by tapping: aim at the tapped player (or nearest in
+  // range if the tap missed everyone). Server validates range + cooldown.
+  const onTap = useCallback(
+    (clientX: number, clientY: number) => {
+      const gs = useGame.getState();
+      const self = gs.roster.find((r) => r.sessionId === gs.selfId);
+      if (gs.phase !== "hunting" || self?.team !== "seeker" || self?.isEliminated) return;
+      if (Date.now() < gs.laserCdUntil) return;
+      const rect = gl.domElement.getBoundingClientRect();
+      ndc.current.set(
+        ((clientX - rect.left) / rect.width) * 2 - 1,
+        -((clientY - rect.top) / rect.height) * 2 + 1
+      );
+      tapRay.current.setFromCamera(ndc.current, camera);
+      let targetId: string | undefined;
+      if (targets.length) {
+        const hits = tapRay.current.intersectObjects(
+          targets.map((t) => t.object),
+          true
+        );
+        if (hits.length) targetId = ownerSessionId(hits[0].object);
+      }
+      gs.shoot("laser", targetId);
+    },
+    [gl, camera]
+  );
 
   useEffect(() => attachKeyboard(), []);
   useEffect(() => {
     resetCamera();
-    return attachCameraInput(gl.domElement);
-  }, [gl]);
+    return attachCameraInput(gl.domElement, onTap);
+  }, [gl, onTap]);
 
   useFrame(({ camera }, dt) => {
     const g = group.current;

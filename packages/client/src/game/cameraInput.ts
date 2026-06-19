@@ -45,10 +45,23 @@ export function resetCamera(): void {
 
 const clamp = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v);
 
-/** Attach camera-control listeners to a DOM element. Returns a cleanup fn. */
-export function attachCameraInput(el: HTMLElement): () => void {
-  const pointers = new Map<number, { x: number; y: number }>();
+const TAP_MOVE = 11; // px of slack still counts as a tap
+const TAP_TIME = 350; // ms
+
+/**
+ * Attach camera-control listeners. `onTap` fires for a quick, non-dragging touch
+ * (used by the seeker to aim & fire). Returns a cleanup fn.
+ */
+export function attachCameraInput(
+  el: HTMLElement,
+  onTap?: (clientX: number, clientY: number) => void
+): () => void {
+  const pointers = new Map<
+    number,
+    { x: number; y: number; sx: number; sy: number; t0: number; moved: number }
+  >();
   let lastPinch = 0;
+  let multi = false; // a second finger touched at some point in this gesture
 
   const pinchDistance = (): number => {
     const pts = Array.from(pointers.values());
@@ -59,14 +72,23 @@ export function attachCameraInput(el: HTMLElement): () => void {
   const onDown = (e: PointerEvent) => {
     // Mouse: only drag with the primary (left) button.
     if (e.pointerType === "mouse" && e.button !== 0) return;
-    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    // Capture so we keep both fingers through a pinch even if one slides off.
+    pointers.set(e.pointerId, {
+      x: e.clientX,
+      y: e.clientY,
+      sx: e.clientX,
+      sy: e.clientY,
+      t0: performance.now(),
+      moved: 0,
+    });
     try {
       el.setPointerCapture(e.pointerId);
     } catch {
       /* ignore */
     }
-    if (pointers.size === 2) lastPinch = pinchDistance();
+    if (pointers.size >= 2) {
+      multi = true;
+      lastPinch = pinchDistance();
+    }
   };
 
   const onMove = (e: PointerEvent) => {
@@ -76,6 +98,7 @@ export function attachCameraInput(el: HTMLElement): () => void {
     const dy = e.clientY - p.y;
     p.x = e.clientX;
     p.y = e.clientY;
+    p.moved = Math.max(p.moved, Math.hypot(e.clientX - p.sx, e.clientY - p.sy));
 
     if (pointers.size >= 2) {
       // Pinch: spreading fingers (distance grows) zooms in.
@@ -94,8 +117,25 @@ export function attachCameraInput(el: HTMLElement): () => void {
   };
 
   const onUp = (e: PointerEvent) => {
+    const p = pointers.get(e.pointerId);
+    const wasSingle = pointers.size === 1;
     pointers.delete(e.pointerId);
-    if (pointers.size < 2) lastPinch = 0;
+    if (
+      onTap &&
+      p &&
+      wasSingle &&
+      !multi &&
+      p.moved < TAP_MOVE &&
+      performance.now() - p.t0 < TAP_TIME
+    ) {
+      onTap(e.clientX, e.clientY);
+    }
+    if (pointers.size === 0) {
+      multi = false;
+      lastPinch = 0;
+    } else if (pointers.size < 2) {
+      lastPinch = 0;
+    }
   };
 
   const onWheel = (e: WheelEvent) => {

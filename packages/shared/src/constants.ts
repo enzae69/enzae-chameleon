@@ -25,10 +25,10 @@ export const COLOR_COPY_RANGE = 3.0;
 export const DISGUISE_RANGE = 3.0; // must be near a prop to morph into it
 export const TAG_COOLDOWN_MS = 3000; // (legacy)
 
-// --- Seeker weapons ---
-export const LASER_RANGE = 13; // ranged laser bolt
-export const LASER_COOLDOWN_MS = 3200;
-export const TASER_RANGE = 3.4; // short-range taser
+// --- Seeker weapon (tap to aim & fire) ---
+export const LASER_RANGE = 13;
+export const LASER_COOLDOWN_MS = 2000; // 2s cooldown
+export const TASER_RANGE = 3.4;
 export const TASER_COOLDOWN_MS = 1300;
 
 // Building structure (shared so client rendering & collision match the server).

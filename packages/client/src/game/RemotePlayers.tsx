@@ -1,10 +1,11 @@
-import { useRef, useState } from "react";
-import { useFrame, type ThreeEvent } from "@react-three/fiber";
+import { useEffect, useRef, useState } from "react";
+import { useFrame } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import * as THREE from "three";
 import { PLAYER_RADIUS, PLAYER_HEIGHT } from "@enzae/shared";
 import { live } from "../net/live";
 import { useGame } from "../store/gameStore";
+import { registerTarget, unregisterTarget } from "./targets";
 import { PropMesh } from "./Prop";
 import Blaster from "./Blaster";
 
@@ -70,30 +71,20 @@ function RemotePlayer({
     }
   });
 
-  // Seeker aims the laser by tapping a suspect.
-  const fireLaser = (e: ThreeEvent<PointerEvent>) => {
-    const gs = useGame.getState();
-    const self = gs.roster.find((r) => r.sessionId === gs.selfId);
-    if (gs.phase !== "hunting" || self?.team !== "seeker" || self?.isEliminated) return;
-    if (Date.now() < gs.laserCdUntil) return; // laser still recharging
-    e.stopPropagation();
-    gs.shoot("laser", id);
-  };
+  // Register as a tap-to-aim target for the seeker's laser.
+  useEffect(() => {
+    const g = group.current;
+    registerTarget(g, id);
+    return () => unregisterTarget(g);
+  }, [id]);
 
   return (
     <group ref={group}>
       {disguise ? (
-        <PropMesh
-          ref={mat}
-          kind={disguise.kind}
-          sx={disguise.sx}
-          sy={disguise.sy}
-          sz={disguise.sz}
-          onPointerDown={fireLaser}
-        />
+        <PropMesh ref={mat} kind={disguise.kind} sx={disguise.sx} sy={disguise.sy} sz={disguise.sz} />
       ) : (
         <>
-          <mesh position={[0, PLAYER_HEIGHT / 2, 0]} castShadow onPointerDown={fireLaser}>
+          <mesh position={[0, PLAYER_HEIGHT / 2, 0]} castShadow>
             <capsuleGeometry args={[PLAYER_RADIUS, BODY_LEN, 4, 12]} />
             <meshStandardMaterial ref={mat} roughness={0.6} />
           </mesh>

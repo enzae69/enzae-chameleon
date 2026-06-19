@@ -90,9 +90,7 @@ export default function HUD() {
   const changeColor = useGame((s) => s.changeColor);
   const disguise = useGame((s) => s.disguise);
   const undisguise = useGame((s) => s.undisguise);
-  const shoot = useGame((s) => s.shoot);
   const laserCdUntil = useGame((s) => s.laserCdUntil);
-  const taserCdUntil = useGame((s) => s.taserCdUntil);
   const sendEmote = useGame((s) => s.sendEmote);
   const showToast = useUI((s) => s.showToast);
 
@@ -100,16 +98,13 @@ export default function HUD() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [, force] = useState(0);
 
-  // Tick while either weapon is on cooldown so the buttons update.
-  const now = Date.now();
-  const laserCd = Math.max(0, laserCdUntil - now);
-  const taserCd = Math.max(0, taserCdUntil - now);
-  const anyCd = laserCd > 0 || taserCd > 0;
+  // Tick while the laser is recharging so the status updates.
+  const laserCd = Math.max(0, laserCdUntil - Date.now());
   useEffect(() => {
-    if (!anyCd) return;
+    if (laserCd <= 0) return;
     const t = window.setInterval(() => force((n) => n + 1), 100);
     return () => window.clearInterval(t);
-  }, [anyCd]);
+  }, [laserCd > 0]);
 
   const self = roster.find((r) => r.sessionId === selfId);
   const team = self?.team ?? "hider";
@@ -194,25 +189,14 @@ export default function HUD() {
           </div>
 
           {showSeekerTools && (
-            <div className="flex flex-col items-end gap-2">
-              {/* Laser is aimed by tapping a suspect — this is just its status. */}
-              <div
-                className={`glass rounded-full px-3 py-1.5 text-xs font-semibold ${
-                  laserCd > 0 ? "text-white/50" : "text-red-300"
-                }`}
-              >
-                {laserCd > 0
-                  ? `⚡ Laser lädt… ${(laserCd / 1000).toFixed(1)}s`
-                  : "⚡ Laser bereit – tippe einen Verdächtigen an"}
-              </div>
-              <button
-                className={`px-5 py-4 text-base ${taserCd > 0 ? "btn-ghost opacity-60" : "btn-danger"}`}
-                onClick={() => shoot("taser")}
-                disabled={taserCd > 0}
-                title="Taser – Nahbereich, kurzer Cooldown"
-              >
-                {taserCd > 0 ? `🔌 ${(taserCd / 1000).toFixed(1)}s` : "🔌 Taser"}
-              </button>
+            <div
+              className={`glass rounded-full px-4 py-2 text-sm font-semibold ${
+                laserCd > 0 ? "text-white/50" : "text-red-300"
+              }`}
+            >
+              {laserCd > 0
+                ? `⚡ Lädt… ${(laserCd / 1000).toFixed(1)}s`
+                : "⚡ Tippe zum Schießen"}
             </div>
           )}
 

@@ -174,7 +174,7 @@ export class GameRoom extends Room<GameState> {
       return;
     }
     try {
-      await this.allowReconnection(client, 20);
+      await this.allowReconnection(client, 60);
       const rp = this.state.players.get(client.sessionId);
       if (rp) rp.connected = true;
     } catch {
