@@ -158,7 +158,7 @@ export default function HUD() {
             {team === "seeker" ? "🔴 Seeker" : "🟢 Hider"}
           </span>
           {eliminated && <span className="ml-2 text-white/50">· raus (Zuschauer)</span>}
-          {disguised && <span className="ml-2 text-amber-300">· 🪄 verwandelt – nicht bewegen!</span>}
+          {disguised && <span className="ml-2 text-amber-300">· 🪄 verwandelt</span>}
           <span className="ml-3 text-white/60">🫥 {aliveHiders} übrig</span>
         </div>
       </div>
@@ -241,19 +241,18 @@ export default function HUD() {
               <button className="btn-ghost px-4 py-4" onClick={copyColor} title="Farbe vom nächsten Objekt kopieren">
                 🦎 Tarnen
               </button>
-              {disguised ? (
-                <button className="btn-primary px-5 py-4 text-base" onClick={undisguise}>
-                  🙅 Enttarnen
-                </button>
-              ) : (
-                <button
-                  className="btn-primary px-5 py-4 text-base"
-                  onClick={disguise}
-                  title="In das nächste Objekt verwandeln (still halten!)"
-                >
-                  🪄 Verwandeln
+              {disguised && (
+                <button className="btn-ghost px-4 py-4" onClick={undisguise} title="Tarnung aufheben">
+                  🙅
                 </button>
               )}
+              <button
+                className="btn-primary px-5 py-4 text-base"
+                onClick={disguise}
+                title="In das nächste Objekt verwandeln"
+              >
+                🪄 {disguised ? "Neu verwandeln" : "Verwandeln"}
+              </button>
             </div>
           )}
         </div>

@@ -357,10 +357,6 @@ export class GameRoom extends Room<GameState> {
       const input = this.inputs.get(p.sessionId);
       if (!input) return;
       integrate(p, input, dt, phase, this.buildings);
-      // Moving breaks a disguise — you must hold your pose to stay an object.
-      if (p.disguiseKind && (Math.abs(input.moveX) > 0.01 || Math.abs(input.moveZ) > 0.01)) {
-        this.clearDisguise(p);
-      }
     });
 
     const now = Date.now();
