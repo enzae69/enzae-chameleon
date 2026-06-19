@@ -46,7 +46,9 @@ export interface CopyColorPayload {}
 export type WeaponType = "laser" | "taser";
 export interface ShootPayload {
   weapon: WeaponType;
-  targetSessionId?: string; // for aimed laser shots (tap a target)
+  targetSessionId?: string; // a directly-tapped player
+  aimX?: number; // world point the player tapped (beam goes here)
+  aimZ?: number;
 }
 export interface EmotePayload {
   emote: string;

@@ -28,6 +28,7 @@ export const TAG_COOLDOWN_MS = 3000; // (legacy)
 // --- Seeker weapon (tap to aim & fire) ---
 export const LASER_RANGE = 13;
 export const LASER_COOLDOWN_MS = 2000; // 2s cooldown
+export const LASER_HIT_RADIUS = 1.7; // how close to the tapped point counts as a hit
 export const TASER_RANGE = 3.4;
 export const TASER_COOLDOWN_MS = 1300;
 

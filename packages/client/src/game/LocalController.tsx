@@ -49,6 +49,8 @@ export default function LocalController() {
   const { gl, camera } = useThree();
   const tapRay = useRef(new THREE.Raycaster());
   const ndc = useRef(new THREE.Vector2());
+  const aimPlane = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), -1.0)); // y = 1
+  const aimPt = useRef(new THREE.Vector3());
 
   // Seeker fires the laser by tapping: aim at the tapped player (or nearest in
   // range if the tap missed everyone). Server validates range + cooldown.
@@ -72,7 +74,9 @@ export default function LocalController() {
         );
         if (hits.length) targetId = ownerSessionId(hits[0].object);
       }
-      gs.shoot("laser", targetId);
+      // World point the ray hits at chest height → the beam aims exactly there.
+      const aim = tapRay.current.ray.intersectPlane(aimPlane.current, aimPt.current);
+      gs.shoot("laser", targetId, aim?.x, aim?.z);
     },
     [gl, camera]
   );

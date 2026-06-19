@@ -86,7 +86,7 @@ interface GameStore {
   copyColor: () => void;
   disguise: () => void;
   undisguise: () => void;
-  shoot: (weapon: WeaponType, targetSessionId?: string) => void;
+  shoot: (weapon: WeaponType, targetSessionId?: string, aimX?: number, aimZ?: number) => void;
   toggleReady: () => void;
   requestStart: () => void;
   kick: (targetSessionId: string) => void;
@@ -364,10 +364,10 @@ export const useGame = create<GameStore>((set, get) => {
     copyColor: () => get().room?.send(ClientMessage.CopyColor, {}),
     disguise: () => get().room?.send(ClientMessage.Disguise, {}),
     undisguise: () => get().room?.send(ClientMessage.Undisguise, {}),
-    shoot: (weapon, targetSessionId) => {
+    shoot: (weapon, targetSessionId, aimX, aimZ) => {
       const room = get().room;
       if (!room) return;
-      room.send(ClientMessage.Shoot, { weapon, targetSessionId });
+      room.send(ClientMessage.Shoot, { weapon, targetSessionId, aimX, aimZ });
       const cd = weapon === "laser" ? LASER_COOLDOWN_MS : TASER_COOLDOWN_MS;
       const until = Date.now() + cd;
       set(weapon === "laser" ? { laserCdUntil: until } : { taserCdUntil: until });

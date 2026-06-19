@@ -27,7 +27,7 @@ function RoleAnnounce() {
   const seeker = team === "seeker";
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center p-4">
+    <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center p-4">
       <div
         className={`animate-pop rounded-3xl border-4 px-10 py-8 text-center backdrop-blur-md ${
           seeker ? "border-red-500 bg-red-950/50" : "border-cham-400 bg-cham-950/40"
@@ -41,6 +41,32 @@ function RoleAnnounce() {
           {seeker ? "Catch the hiders! 🎯" : "Versteck & tarne dich! 🦎"}
         </p>
       </div>
+    </div>
+  );
+}
+
+/** The seeker "counts" with eyes closed (black screen) while hiders hide. */
+function SeekerBlackout() {
+  const phase = useGame((s) => s.phase);
+  const roster = useGame((s) => s.roster);
+  const selfId = useGame((s) => s.selfId);
+  const phaseEndsAt = useGame((s) => s.phaseEndsAt);
+  const team = roster.find((r) => r.sessionId === selfId)?.team;
+  const [, force] = useState(0);
+  useEffect(() => {
+    const t = window.setInterval(() => force((n) => n + 1), 250);
+    return () => window.clearInterval(t);
+  }, []);
+
+  if (phase !== "hiding" || team !== "seeker") return null;
+  const left = phaseEndsAt ? Math.max(0, Math.ceil((phaseEndsAt - Date.now()) / 1000)) : 0;
+
+  return (
+    <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black text-center">
+      <div className="text-8xl">🙈</div>
+      <h2 className="font-display mt-3 text-4xl font-black text-white">Augen zu!</h2>
+      <p className="mt-1 text-lg text-white/60">Die Hider verstecken sich…</p>
+      <div className="mt-6 font-display text-7xl font-black text-cham-300">{left}</div>
     </div>
   );
 }
@@ -172,6 +198,7 @@ export default function RoomView() {
       <GameCanvas />
       <HUD />
       <RoleAnnounce />
+      <SeekerBlackout />
       {phase === "waiting" && <WaitingOverlay />}
       {phase === "ended" && <EndOverlay />}
     </div>
