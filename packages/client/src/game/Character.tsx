@@ -27,10 +27,9 @@ export default function Character({
   const { scene } = useGLTF(MODEL_URL);
 
   // Independent clone (geometry shared, materials cloned for tinting).
-  // The model is authored Z-up, so stand it up (Z-up → Y-up).
+  // The Sketchfab model is already Y-up and stands at the origin.
   const model = useMemo(() => {
     const c = scene.clone(true);
-    c.rotation.x = -Math.PI / 2;
     c.updateMatrixWorld(true);
     c.traverse((o) => {
       const m = o as THREE.Mesh;
