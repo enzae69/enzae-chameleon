@@ -26,9 +26,12 @@ export default function Character({
 }) {
   const { scene } = useGLTF(MODEL_URL);
 
-  // Independent clone (own geometry refs are shared, materials are cloned for tinting).
+  // Independent clone (geometry shared, materials cloned for tinting).
+  // The model is authored Z-up, so stand it up (Z-up → Y-up).
   const model = useMemo(() => {
     const c = scene.clone(true);
+    c.rotation.x = -Math.PI / 2;
+    c.updateMatrixWorld(true);
     c.traverse((o) => {
       const m = o as THREE.Mesh;
       if ((m as THREE.Mesh).isMesh) {
@@ -42,6 +45,7 @@ export default function Character({
 
   // Auto-fit: uniform scale to PLAYER_HEIGHT, centred on x/z, feet at y=0.
   const { scale, offset } = useMemo(() => {
+    model.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(model);
     const size = new THREE.Vector3();
     const center = new THREE.Vector3();
