@@ -1,19 +1,24 @@
-import { useLayoutEffect, useMemo, useRef } from "react";
-import { useGLTF } from "@react-three/drei";
+import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { useGLTF, useAnimations } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
+import { SkeletonUtils } from "three-stdlib";
 import * as THREE from "three";
 import { PLAYER_HEIGHT } from "@enzae/shared";
 
 const MODEL_URL = `${import.meta.env.BASE_URL}models/character.glb`;
 useGLTF.preload(MODEL_URL);
 
-// Tweakables in case the model needs reorienting.
-const FACE_Y = 0; // extra yaw so the model faces +z (forward)
+// Extra yaw if the model's "front" isn't +z. Our rig faces +z (movement
+// forward), so this stays 0.
+const FACE_Y = 0;
+// Below this normalised speed we play idle; above it, walk.
+const MOVE_THRESHOLD = 0.12;
 
 /**
- * The player character: the white stickman model, auto-scaled to player height,
- * tinted to the player colour, with a procedural walk bob (the model has no rig).
- * `speedRef` is 0..1 (how fast we're moving) and drives the bob.
+ * The player character: a rigged stickman, auto-scaled to player height and
+ * tinted to the player colour. It blends between a real idle and walk
+ * animation (baked into the GLB) based on how fast the player is moving.
+ * `speedRef` is 0..1 (movement speed).
  */
 export default function Character({
   colorRef,
@@ -24,18 +29,19 @@ export default function Character({
   speedRef: React.MutableRefObject<number>;
   eliminatedRef: React.MutableRefObject<boolean>;
 }) {
-  const { scene } = useGLTF(MODEL_URL);
+  const { scene, animations } = useGLTF(MODEL_URL);
 
-  // Independent clone (geometry shared, materials cloned for tinting).
-  // The Sketchfab model is already Y-up and stands at the origin.
+  // Per-instance clone with an independent skeleton (SkeletonUtils, not a plain
+  // clone, or every player would share one pose) and independent materials so
+  // each player can be tinted separately.
   const model = useMemo(() => {
-    const c = scene.clone(true);
-    c.updateMatrixWorld(true);
+    const c = SkeletonUtils.clone(scene) as THREE.Object3D;
     c.traverse((o) => {
       const m = o as THREE.Mesh;
-      if ((m as THREE.Mesh).isMesh) {
+      if (m.isMesh) {
         m.castShadow = true;
         m.receiveShadow = false;
+        m.frustumCulled = false; // skinned bounds move; don't let it pop out
         m.material = (m.material as THREE.Material).clone();
       }
     });
@@ -44,7 +50,6 @@ export default function Character({
 
   // Auto-fit: uniform scale to PLAYER_HEIGHT, centred on x/z, feet at y=0.
   const { scale, offset } = useMemo(() => {
-    model.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(model);
     const size = new THREE.Vector3();
     const center = new THREE.Vector3();
@@ -62,13 +67,27 @@ export default function Character({
     const list: THREE.MeshStandardMaterial[] = [];
     model.traverse((o) => {
       const m = o as THREE.Mesh;
-      if ((m as THREE.Mesh).isMesh) list.push(m.material as THREE.MeshStandardMaterial);
+      if (m.isMesh) list.push(m.material as THREE.MeshStandardMaterial);
     });
     mats.current = list;
   }, [model]);
 
-  const inner = useRef<THREE.Group>(null!);
-  const walk = useRef(0);
+  // Drive both clips at once and crossfade by weight — smoother than stopping
+  // and starting actions every time the player halts.
+  const { actions } = useAnimations(animations, model);
+  const walkW = useRef(0);
+  useEffect(() => {
+    const idle = actions.idle;
+    const walk = actions.walk;
+    idle?.reset().play();
+    walk?.reset().play();
+    idle?.setEffectiveWeight(1);
+    walk?.setEffectiveWeight(0);
+    return () => {
+      idle?.stop();
+      walk?.stop();
+    };
+  }, [actions]);
 
   useFrame((_, dt) => {
     const eliminated = eliminatedRef.current;
@@ -78,17 +97,20 @@ export default function Character({
       m.opacity = eliminated ? 0.25 : 1;
     }
     const sp = Math.min(1, Math.max(0, speedRef.current));
-    walk.current += dt * 11 * sp;
-    const g = inner.current;
-    if (g) {
-      g.position.y = offset.y + Math.abs(Math.sin(walk.current)) * 0.07 * sp;
-      g.rotation.z = Math.sin(walk.current) * 0.06 * sp;
+    const target = sp > MOVE_THRESHOLD ? 1 : 0;
+    walkW.current += (target - walkW.current) * Math.min(1, dt * 12);
+    const walk = actions.walk;
+    const idle = actions.idle;
+    if (walk) {
+      walk.setEffectiveWeight(walkW.current);
+      walk.timeScale = 0.7 + sp * 1.1; // faster movement → quicker steps
     }
+    if (idle) idle.setEffectiveWeight(1 - walkW.current);
   });
 
   return (
     <group rotation={[0, FACE_Y, 0]}>
-      <group ref={inner} position={offset} scale={scale}>
+      <group position={offset} scale={scale}>
         <primitive object={model} />
       </group>
     </group>
