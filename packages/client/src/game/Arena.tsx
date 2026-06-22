@@ -3,49 +3,42 @@ import * as THREE from "three";
 import {
   generateMap,
   generateBuildings,
+  generateWalls,
   ARENA_SIZE,
   ARENA_HALF,
-  WALL_THICKNESS,
+  DECK_DEPTH,
+  DECK_HALF_W,
 } from "@enzae/shared";
 import { PropMesh } from "./Prop";
 import Building from "./Building";
 import { registerCollider, unregisterCollider } from "./colliders";
 
-const WALL_H = 4.5; // facility perimeter wall height
-
 export default function Arena({ seed }: { seed: number }) {
   const objects = useMemo(() => generateMap(seed), [seed]);
   const buildings = useMemo(() => generateBuildings(seed), [seed]);
+  const wallSegs = useMemo(() => generateWalls(seed), [seed]);
   const colliderRef = useRef<THREE.Group>(null);
 
-  // Register perimeter walls + buildings so the camera pulls in behind them.
+  // Register all walls so the camera pulls in behind them.
   useEffect(() => {
     const g = colliderRef.current;
     registerCollider(g);
     return () => unregisterCollider(g);
   }, []);
 
-  const walls = [
-    { x: 0, z: -ARENA_HALF, w: ARENA_SIZE + WALL_THICKNESS, d: WALL_THICKNESS },
-    { x: 0, z: ARENA_HALF, w: ARENA_SIZE + WALL_THICKNESS, d: WALL_THICKNESS },
-    { x: -ARENA_HALF, z: 0, w: WALL_THICKNESS, d: ARENA_SIZE },
-    { x: ARENA_HALF, z: 0, w: WALL_THICKNESS, d: ARENA_SIZE },
-  ];
-
   return (
     <group>
-      {/* Outer concrete apron so the world doesn't visibly end. */}
+      {/* Outer apron so the world doesn't visibly end. */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} receiveShadow>
-        <planeGeometry args={[500, 500]} />
+        <planeGeometry args={[560, 560]} />
         <meshStandardMaterial color="#3c4248" roughness={1} />
       </mesh>
 
-      {/* Lab tile floor */}
+      {/* Lab tile floor + grid */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[ARENA_SIZE, ARENA_SIZE]} />
         <meshStandardMaterial color="#b9c2c8" roughness={0.85} metalness={0.05} />
       </mesh>
-      {/* Tile grid lines */}
       <gridHelper
         args={[ARENA_SIZE, Math.round(ARENA_SIZE / 3), "#8c97a0", "#9aa4ac"]}
         position={[0, 0.012, 0]}
@@ -61,26 +54,44 @@ export default function Arena({ seed }: { seed: number }) {
         <meshStandardMaterial color="#e0b020" roughness={0.7} />
       </mesh>
 
-      {/* Facility perimeter walls (camera collider) */}
+      {/* Outside deck (east, through the exit) */}
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[ARENA_HALF + DECK_DEPTH / 2, 0.006, 0]}
+        receiveShadow
+      >
+        <planeGeometry args={[DECK_DEPTH, DECK_HALF_W * 2]} />
+        <meshStandardMaterial color="#717a82" roughness={0.7} metalness={0.25} />
+      </mesh>
+
+      {/* Walls: rooms (interior), perimeter (with exit), deck rails */}
       <group ref={colliderRef}>
-        {walls.map((w, i) => (
-          <group key={i} position={[w.x, 0, w.z]}>
-            <mesh position={[0, WALL_H / 2, 0]} castShadow receiveShadow>
-              <boxGeometry args={[w.w, WALL_H, w.d]} />
-              <meshStandardMaterial color="#9aa4ac" roughness={0.7} metalness={0.2} />
-            </mesh>
-            {/* hazard stripe at the base */}
-            <mesh position={[0, 0.45, 0]}>
-              <boxGeometry args={[w.w + 0.02, 0.5, w.d + 0.02]} />
-              <meshStandardMaterial color="#d9a21a" roughness={0.7} />
-            </mesh>
-            {/* top rail */}
-            <mesh position={[0, WALL_H + 0.1, 0]}>
-              <boxGeometry args={[w.w + 0.15, 0.2, w.d + 0.15]} />
-              <meshStandardMaterial color="#5b656b" roughness={0.6} metalness={0.4} />
-            </mesh>
-          </group>
-        ))}
+        {wallSegs.map((w, i) => {
+          const isRail = w.kind === "rail";
+          const isPerim = w.kind === "perimeter";
+          const h = isRail ? 1.1 : isPerim ? 4.6 : 3.6;
+          const color = isRail ? "#79838b" : isPerim ? "#9aa4ac" : "#aeb8bf";
+          return (
+            <group key={i} position={[w.cx, 0, w.cz]}>
+              <mesh position={[0, h / 2, 0]} castShadow receiveShadow>
+                <boxGeometry args={[w.hx * 2, h, w.hz * 2]} />
+                <meshStandardMaterial color={color} roughness={0.65} metalness={0.2} />
+              </mesh>
+              {isPerim && (
+                <mesh position={[0, 0.5, 0]}>
+                  <boxGeometry args={[w.hx * 2 + 0.02, 0.6, w.hz * 2 + 0.02]} />
+                  <meshStandardMaterial color="#d9a21a" roughness={0.7} />
+                </mesh>
+              )}
+              {!isRail && (
+                <mesh position={[0, h + 0.08, 0]}>
+                  <boxGeometry args={[w.hx * 2 + 0.12, 0.16, w.hz * 2 + 0.12]} />
+                  <meshStandardMaterial color="#5b656b" roughness={0.6} metalness={0.4} />
+                </mesh>
+              )}
+            </group>
+          );
+        })}
       </group>
 
       {/* Walk-in lab modules (each registers its own walls as colliders) */}

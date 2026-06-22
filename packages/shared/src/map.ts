@@ -1,4 +1,26 @@
-import { ARENA_HALF, PLAYER_RADIUS, BUILDING_WALL_T, BUILDING_DOOR_W } from "./constants";
+import {
+  ARENA_HALF,
+  WALL_THICKNESS,
+  PLAYER_RADIUS,
+  BUILDING_WALL_T,
+  BUILDING_DOOR_W,
+  INTERIOR_WALL_T,
+  ROOM_DOORWAY_HALF,
+  ROOM_LINES,
+  ROOM_DOOR_CENTERS,
+  EXIT_HALF,
+  DECK_DEPTH,
+  DECK_HALF_W,
+} from "./constants";
+
+/** Axis-aligned wall box (centre + half extents) for rooms, perimeter and deck. */
+export interface WallSeg {
+  cx: number;
+  cz: number;
+  hx: number;
+  hz: number;
+  kind: "interior" | "perimeter" | "rail";
+}
 
 /** Shape families a prop (and a disguised player) can take. */
 export type PropKind = "crate" | "barrel" | "tank" | "rock" | "pillar";
@@ -82,57 +104,76 @@ function sizeForKind(kind: PropKind, rand: () => number): { sx: number; sy: numb
   }
 }
 
-/** Build the arena prop layout deterministically from a seed. */
+/** Build the arena prop layout: lots of lab equipment in the rooms + on the deck. */
 export function generateMap(seed: number): MapObject[] {
   const rand = mulberry32(seed || 1);
+  const buildings = generateBuildings(seed);
   const objects: MapObject[] = [];
-  const count = 34; // lab equipment scattered across the larger facility
-  const half = ARENA_HALF - 3;
-  for (let i = 0; i < count; i++) {
-    const x = (rand() * 2 - 1) * half;
-    const z = (rand() * 2 - 1) * half;
-    if (Math.hypot(x, z) < 5) continue; // keep the central spawn pad clear
+
+  const push = (x: number, z: number) => {
     const kind = PROP_KINDS[Math.floor(rand() * PROP_KINDS.length)];
     const { sx, sy, sz } = sizeForKind(kind, rand);
     const color = LAB_PALETTE[Math.floor(rand() * LAB_PALETTE.length)];
-    objects.push({ id: `obj_${i}`, kind, x, z, sx, sy, sz, color });
+    objects.push({ id: `obj_${objects.length}`, kind, x, z, sx, sy, sz, color });
+  };
+
+  const half = ARENA_HALF - 2.5;
+  const target = 48;
+  let attempts = 0;
+  while (objects.length < target && attempts < target * 8) {
+    attempts++;
+    const x = (rand() * 2 - 1) * half;
+    const z = (rand() * 2 - 1) * half;
+    if (Math.hypot(x, z) < 6) continue; // keep the spawn pad clear
+    if (ROOM_LINES.some((L) => Math.abs(x - L) < 1.7 || Math.abs(z - L) < 1.7)) continue; // off walls/doorways
+    let inBuilding = false;
+    for (const b of buildings) {
+      if (Math.abs(x - b.x) < b.w / 2 + 0.9 && Math.abs(z - b.z) < b.d / 2 + 0.9) {
+        inBuilding = true;
+        break;
+      }
+    }
+    if (inBuilding) continue;
+    push(x, z);
+  }
+
+  // A few crates/tanks out on the deck so "going outside" has something to find.
+  for (let i = 0; i < 4; i++) {
+    const x = ARENA_HALF + 3 + rand() * (DECK_DEPTH - 5);
+    const z = (rand() * 2 - 1) * (DECK_HALF_W - 1.6);
+    push(x, z);
   }
   return objects;
 }
 
-/** Build the arena buildings deterministically (separate stream from props). */
+/** Place one sealed lab module inside some room cells (never the central spawn). */
 export function generateBuildings(seed: number): Building[] {
   const rand = mulberry32(((seed || 1) ^ 0x9e3779b9) >>> 0);
-  const out: Building[] = [];
-  const target = 11; // lab modules spread across the facility
-  const half = ARENA_HALF - 9;
-  let attempts = 0;
-  while (out.length < target && attempts < 600) {
-    attempts++;
-    const w = 7 + rand() * 6; // big lab rooms (7–13)
-    const d = 7 + rand() * 6;
-    const x = (rand() * 2 - 1) * half;
-    const z = (rand() * 2 - 1) * half;
-    const radius = Math.max(w, d) / 2;
-    // Keep the central spawn pad clear.
-    if (Math.hypot(x, z) < 12) continue;
-    // Reject overlaps so modules never intersect.
-    let ok = true;
-    for (const b of out) {
-      const minDist = radius + Math.max(b.w, b.d) / 2 + 2.5;
-      if (Math.hypot(x - b.x, z - b.z) < minDist) {
-        ok = false;
-        break;
-      }
+  const cells: [number, number][] = [];
+  for (const cx of ROOM_DOOR_CENTERS) {
+    for (const cz of ROOM_DOOR_CENTERS) {
+      if (cx === 0 && cz === 0) continue; // keep the spawn room open
+      cells.push([cx, cz]);
     }
-    if (!ok) continue;
+  }
+  // Deterministic shuffle.
+  for (let i = cells.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [cells[i], cells[j]] = [cells[j], cells[i]];
+  }
+  const out: Building[] = [];
+  const n = Math.min(6, cells.length); // modules in 6 of the 8 outer rooms
+  for (let i = 0; i < n; i++) {
+    const [cx, cz] = cells[i];
+    const w = 6.5 + rand() * 2.5; // fits inside the room cell
+    const d = 6.5 + rand() * 2.5;
     out.push({
-      id: `bld_${out.length}`,
-      x,
-      z,
+      id: `bld_${i}`,
+      x: cx,
+      z: cz,
       w,
       d,
-      h: 4.0 + rand() * 2.0, // 4.0–6.0
+      h: 4.0 + rand() * 1.6,
       rotY: Math.floor(rand() * 4) * (Math.PI / 2),
       color: BUILDING_COLORS[Math.floor(rand() * BUILDING_COLORS.length)],
       roof: ROOF_COLORS[Math.floor(rand() * ROOF_COLORS.length)],
@@ -194,6 +235,79 @@ function resolveBox(
   const oz = hz - Math.abs(dz);
   if (ox < oz) return [cx + Math.sign(dx || 1) * (hx + pr), pz];
   return [px, cz + Math.sign(dz || 1) * (hz + pr)];
+}
+
+/** Solid wall segments along a line, leaving doorway gaps. */
+function wallRun(
+  start: number,
+  end: number,
+  gapCenters: number[],
+  gapHalf: number,
+  fixed: number,
+  halfT: number,
+  axis: "x" | "z",
+  kind: WallSeg["kind"]
+): WallSeg[] {
+  const gaps = gapCenters
+    .map((g) => [g - gapHalf, g + gapHalf] as [number, number])
+    .filter(([a, b]) => b > start && a < end)
+    .sort((p, q) => p[0] - q[0]);
+  const segs: [number, number][] = [];
+  let cur = start;
+  for (const [a, b] of gaps) {
+    const s = Math.max(start, a);
+    if (s > cur) segs.push([cur, s]);
+    cur = Math.max(cur, Math.min(end, b));
+  }
+  if (end > cur) segs.push([cur, end]);
+  return segs.map(([a, b]) => {
+    const mid = (a + b) / 2;
+    const half = (b - a) / 2;
+    return axis === "z"
+      ? { cx: fixed, cz: mid, hx: halfT, hz: half, kind }
+      : { cx: mid, cz: fixed, hx: half, hz: halfT, kind };
+  });
+}
+
+/** Build all collidable walls: room-grid partitions, perimeter (with exit) + deck rails. */
+export function generateWalls(_seed: number): WallSeg[] {
+  const H = ARENA_HALF;
+  const it = INTERIOR_WALL_T / 2;
+  const pt = WALL_THICKNESS / 2;
+  const out: WallSeg[] = [];
+
+  // Interior partition grid → connected rooms with doorways.
+  for (const X of ROOM_LINES)
+    out.push(...wallRun(-H, H, ROOM_DOOR_CENTERS, ROOM_DOORWAY_HALF, X, it, "z", "interior"));
+  for (const Z of ROOM_LINES)
+    out.push(...wallRun(-H, H, ROOM_DOOR_CENTERS, ROOM_DOORWAY_HALF, Z, it, "x", "interior"));
+
+  // Perimeter (east side has the exit gap).
+  out.push({ cx: 0, cz: -H, hx: H, hz: pt, kind: "perimeter" });
+  out.push({ cx: 0, cz: H, hx: H, hz: pt, kind: "perimeter" });
+  out.push({ cx: -H, cz: 0, hx: pt, hz: H, kind: "perimeter" });
+  out.push(...wallRun(-H, H, [0], EXIT_HALF, H, pt, "z", "perimeter"));
+
+  // Outside deck rails (east of the arena).
+  const dMidX = H + DECK_DEPTH / 2;
+  out.push({ cx: dMidX, cz: -DECK_HALF_W, hx: DECK_DEPTH / 2, hz: pt, kind: "rail" });
+  out.push({ cx: dMidX, cz: DECK_HALF_W, hx: DECK_DEPTH / 2, hz: pt, kind: "rail" });
+  out.push({ cx: H + DECK_DEPTH, cz: 0, hx: pt, hz: DECK_HALF_W, kind: "rail" });
+
+  return out;
+}
+
+/** Resolve a player position out of all wall segments. */
+export function collideWalls(
+  x: number,
+  z: number,
+  walls: WallSeg[],
+  pr: number = PLAYER_RADIUS
+): { x: number; z: number } {
+  for (const w of walls) {
+    [x, z] = resolveBox(x, z, w.cx, w.cz, w.hx, w.hz, pr);
+  }
+  return { x, z };
 }
 
 /** Resolve a player position out of all building walls (door openings stay passable). */

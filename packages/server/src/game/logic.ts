@@ -1,12 +1,15 @@
 import {
-  ARENA_HALF,
-  PLAYER_RADIUS,
   HIDER_SPEED,
   SEEKER_SPEED,
   SEEKER_RATIO,
+  BOUND_MIN,
+  BOUND_MAX_X,
+  BOUND_MAX_Z,
   Player,
   collideBuildings,
+  collideWalls,
   type Building,
+  type WallSeg,
   type GamePhase,
 } from "@enzae/shared";
 
@@ -41,7 +44,8 @@ export function integrate(
   input: InputState,
   dt: number,
   phase: GamePhase,
-  buildings: Building[] = []
+  buildings: Building[] = [],
+  walls: WallSeg[] = []
 ): void {
   player.rotationY = input.rotationY;
   if (!canMove(player, phase)) return;
@@ -54,11 +58,15 @@ export function integrate(
     mz /= len;
   }
   const speed = speedFor(player.team);
-  const limit = ARENA_HALF - PLAYER_RADIUS - 0.5;
-  let nx = clamp(player.x + mx * speed * dt, -limit, limit);
-  let nz = clamp(player.z + mz * speed * dt, -limit, limit);
+  let nx = clamp(player.x + mx * speed * dt, BOUND_MIN, BOUND_MAX_X);
+  let nz = clamp(player.z + mz * speed * dt, BOUND_MIN, BOUND_MAX_Z);
   if (buildings.length) {
     const r = collideBuildings(nx, nz, buildings);
+    nx = r.x;
+    nz = r.z;
+  }
+  if (walls.length) {
+    const r = collideWalls(nx, nz, walls);
     nx = r.x;
     nz = r.z;
   }

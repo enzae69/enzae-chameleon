@@ -30,10 +30,12 @@ import {
   XP,
   generateMap,
   generateBuildings,
+  generateWalls,
   nearestObject,
   nearestObjectColor,
   levelFromTotalXp,
   type Building,
+  type WallSeg,
 } from "@enzae/shared";
 import { verifyIdToken } from "../auth";
 import { getOrCreateProfile, awardMatchResults } from "../services/profile";
@@ -78,6 +80,7 @@ export class GameRoom extends Room<GameState> {
   private kickedIds = new Set<string>(); // sessions removed by the host (skip reconnection)
   private lastShot = new Map<string, { laser: number; taser: number }>(); // per-weapon cooldown
   private buildings: Building[] = []; // collision geometry for the current map
+  private walls: WallSeg[] = []; // room/perimeter/deck wall collision
   private matchStart = 0;
 
   // ---------------------------------------------------------------- lifecycle
@@ -94,6 +97,7 @@ export class GameRoom extends Room<GameState> {
     state.maxPlayers = ROOM_MAX_PLAYERS;
     state.mapSeed = this.newSeed();
     this.buildings = generateBuildings(state.mapSeed);
+    this.walls = generateWalls(state.mapSeed);
     this.setState(state);
 
     if (kind === "private") this.setPrivate(true);
@@ -334,12 +338,20 @@ export class GameRoom extends Room<GameState> {
       const t = target as Player;
       toX = t.x;
       toZ = t.z;
-      t.isEliminated = true;
-      t.isTagged = true;
       this.clearDisguise(t);
       this.tags.set(client.sessionId, (this.tags.get(client.sessionId) || 0) + 1);
       this.broadcast(ServerMessage.Tagged, { by: client.sessionId, target: t.sessionId });
-      this.broadcast(ServerMessage.Eliminated, { sessionId: t.sessionId });
+      // Infection mode (3+ players): the caught hider joins the seekers.
+      if (this.connectedCount() > 2) {
+        t.team = "seeker";
+        t.isTagged = true;
+        t.color = SEEKER_COLOR;
+        this.broadcast(ServerMessage.Notice, { text: `${t.name} wurde gefangen – jetzt ein Seeker! 🔴` });
+      } else {
+        t.isEliminated = true;
+        t.isTagged = true;
+        this.broadcast(ServerMessage.Eliminated, { sessionId: t.sessionId });
+      }
     } else {
       // Miss: beam goes to the tapped point, capped to the weapon's range.
       const dx = aimX - seeker.x;
@@ -378,7 +390,7 @@ export class GameRoom extends Room<GameState> {
     this.state.players.forEach((p) => {
       const input = this.inputs.get(p.sessionId);
       if (!input) return;
-      integrate(p, input, dt, phase, this.buildings);
+      integrate(p, input, dt, phase, this.buildings, this.walls);
     });
 
     const now = Date.now();
@@ -419,6 +431,7 @@ export class GameRoom extends Room<GameState> {
     this.lockRoom();
     this.state.mapSeed = this.newSeed();
     this.buildings = generateBuildings(this.state.mapSeed);
+    this.walls = generateWalls(this.state.mapSeed);
     this.tags.clear();
     this.lastShot.clear();
 

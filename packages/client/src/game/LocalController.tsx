@@ -6,9 +6,13 @@ import {
   PLAYER_HEIGHT,
   HIDER_SPEED,
   SEEKER_SPEED,
-  ARENA_HALF,
+  BOUND_MIN,
+  BOUND_MAX_X,
+  BOUND_MAX_Z,
   generateBuildings,
+  generateWalls,
   collideBuildings,
+  collideWalls,
 } from "@enzae/shared";
 import { live } from "../net/live";
 import { useGame } from "../store/gameStore";
@@ -20,7 +24,6 @@ import { PropMesh } from "./Prop";
 import Blaster from "./Blaster";
 
 const BODY_LEN = PLAYER_HEIGHT - 2 * PLAYER_RADIUS;
-const LIMIT = ARENA_HALF - PLAYER_RADIUS - 0.5;
 const SEND_INTERVAL = 1 / 20;
 const HEAD_Y = PLAYER_HEIGHT * 0.9; // camera focus / eye height
 
@@ -28,6 +31,7 @@ export default function LocalController() {
   const seed = useGame((s) => s.mapSeed);
   const selfTeam = useGame((s) => s.roster.find((r) => r.sessionId === s.selfId)?.team ?? "hider");
   const buildings = useMemo(() => generateBuildings(seed), [seed]);
+  const walls = useMemo(() => generateWalls(seed), [seed]);
   const group = useRef<THREE.Group>(null!);
   const mat = useRef<THREE.MeshStandardMaterial>(null!);
   const pos = useRef({ x: 0, z: 0, yaw: 0 });
@@ -124,10 +128,15 @@ export default function LocalController() {
     }
     const speed = team === "seeker" ? SEEKER_SPEED : HIDER_SPEED;
 
-    pos.current.x = THREE.MathUtils.clamp(pos.current.x + mx * speed * dt, -LIMIT, LIMIT);
-    pos.current.z = THREE.MathUtils.clamp(pos.current.z + mz * speed * dt, -LIMIT, LIMIT);
+    pos.current.x = THREE.MathUtils.clamp(pos.current.x + mx * speed * dt, BOUND_MIN, BOUND_MAX_X);
+    pos.current.z = THREE.MathUtils.clamp(pos.current.z + mz * speed * dt, BOUND_MIN, BOUND_MAX_Z);
     if (buildings.length) {
       const c = collideBuildings(pos.current.x, pos.current.z, buildings);
+      pos.current.x = c.x;
+      pos.current.z = c.z;
+    }
+    if (walls.length) {
+      const c = collideWalls(pos.current.x, pos.current.z, walls);
       pos.current.x = c.x;
       pos.current.z = c.z;
     }

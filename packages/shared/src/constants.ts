@@ -12,6 +12,19 @@ export const ARENA_SIZE = 78; // square arena side length (world units), centere
 export const ARENA_HALF = ARENA_SIZE / 2;
 export const WALL_THICKNESS = 1;
 
+// --- Lab layout (connected rooms + an exit to an outside deck) ---
+export const INTERIOR_WALL_T = 0.5; // interior partition wall thickness
+export const ROOM_DOORWAY_HALF = 2.3; // half-width of doorways between rooms
+export const ROOM_LINES = [-ARENA_HALF / 3, ARENA_HALF / 3]; // partition grid lines (±13)
+export const ROOM_DOOR_CENTERS = [-2 * ARENA_HALF / 3, 0, (2 * ARENA_HALF) / 3]; // -26,0,26
+export const EXIT_HALF = 2.8; // half-width of the perimeter exit
+export const DECK_DEPTH = 16; // outside deck length (east of the arena)
+export const DECK_HALF_W = 6.5; // outside deck half width
+// Movement bounds: the arena plus the eastern outside deck.
+export const BOUND_MIN = -(ARENA_HALF + 2);
+export const BOUND_MAX_X = ARENA_HALF + DECK_DEPTH + 2;
+export const BOUND_MAX_Z = ARENA_HALF + 2;
+
 // --- Player ---
 export const PLAYER_RADIUS = 0.5;
 export const PLAYER_HEIGHT = 1.6;
