@@ -19,9 +19,9 @@ function SkyDome() {
         depthTest: false,
         fog: false,
         uniforms: {
-          top: { value: new THREE.Color("#4f93d6") },
-          mid: { value: new THREE.Color("#9fc6e8") },
-          bottom: { value: new THREE.Color("#dcebf2") },
+          top: { value: new THREE.Color("#6f7e8c") },
+          mid: { value: new THREE.Color("#aab6c0") },
+          bottom: { value: new THREE.Color("#d7dde2") },
         },
         vertexShader: `
           varying vec3 vDir;
@@ -62,30 +62,31 @@ export default function GameCanvas() {
       camera={{ position: [0, 12, 16], fov: 55, near: 0.2, far: 1000 }}
       gl={{ antialias: true, powerPreference: "high-performance", toneMappingExposure: 1.05 }}
     >
-      <color attach="background" args={["#dcebf2"]} />
-      <fog attach="fog" args={["#d4e6f1", 55, 165]} />
+      <color attach="background" args={["#d7dde2"]} />
+      <fog attach="fog" args={["#cfd6dc", 80, 230]} />
 
       <SkyDome />
 
-      <hemisphereLight args={["#cfe4ff", "#5a6b46", 0.7]} />
-      <ambientLight intensity={0.25} />
+      {/* Cool, even facility lighting. */}
+      <hemisphereLight args={["#dfe8f0", "#5b626a", 0.85]} />
+      <ambientLight intensity={0.3} />
       <directionalLight
         castShadow
         position={SUN.toArray()}
-        intensity={2.6}
-        color="#fff4dc"
+        intensity={2.2}
+        color="#eaf1f7"
         shadow-mapSize={[2048, 2048]}
         shadow-bias={-0.0004}
         shadow-normalBias={0.04}
         shadow-camera-near={1}
-        shadow-camera-far={140}
-        shadow-camera-left={-34}
-        shadow-camera-right={34}
-        shadow-camera-top={34}
-        shadow-camera-bottom={-34}
+        shadow-camera-far={200}
+        shadow-camera-left={-46}
+        shadow-camera-right={46}
+        shadow-camera-top={46}
+        shadow-camera-bottom={-46}
       />
-      {/* Soft warm bounce from the opposite side. */}
-      <directionalLight position={[-20, 14, -16]} intensity={0.35} color="#ffd9a8" />
+      {/* Cool fill from the opposite side. */}
+      <directionalLight position={[-26, 16, -20]} intensity={0.4} color="#bcd0e0" />
 
       <Arena seed={seed} />
       <RemotePlayers />

@@ -11,21 +11,21 @@ import { PropMesh } from "./Prop";
 import Building from "./Building";
 import { registerCollider, unregisterCollider } from "./colliders";
 
-const HEDGE_H = 2.4;
+const WALL_H = 4.5; // facility perimeter wall height
 
 export default function Arena({ seed }: { seed: number }) {
   const objects = useMemo(() => generateMap(seed), [seed]);
   const buildings = useMemo(() => generateBuildings(seed), [seed]);
   const colliderRef = useRef<THREE.Group>(null);
 
-  // Register hedges + buildings so the camera can pull in when they block the view.
+  // Register perimeter walls + buildings so the camera pulls in behind them.
   useEffect(() => {
     const g = colliderRef.current;
     registerCollider(g);
     return () => unregisterCollider(g);
   }, []);
 
-  const hedges = [
+  const walls = [
     { x: 0, z: -ARENA_HALF, w: ARENA_SIZE + WALL_THICKNESS, d: WALL_THICKNESS },
     { x: 0, z: ARENA_HALF, w: ARENA_SIZE + WALL_THICKNESS, d: WALL_THICKNESS },
     { x: -ARENA_HALF, z: 0, w: WALL_THICKNESS, d: ARENA_SIZE },
@@ -34,47 +34,61 @@ export default function Arena({ seed }: { seed: number }) {
 
   return (
     <group>
-      {/* Far ground so the world doesn't visibly end (fades into fog/horizon). */}
+      {/* Outer concrete apron so the world doesn't visibly end. */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} receiveShadow>
-        <planeGeometry args={[400, 400]} />
-        <meshStandardMaterial color="#6f9b4a" roughness={1} />
+        <planeGeometry args={[500, 500]} />
+        <meshStandardMaterial color="#3c4248" roughness={1} />
       </mesh>
 
-      {/* Play-field lawn */}
+      {/* Lab tile floor */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[ARENA_SIZE, ARENA_SIZE]} />
-        <meshStandardMaterial color="#7cb04e" roughness={1} />
+        <meshStandardMaterial color="#b9c2c8" roughness={0.85} metalness={0.05} />
+      </mesh>
+      {/* Tile grid lines */}
+      <gridHelper
+        args={[ARENA_SIZE, Math.round(ARENA_SIZE / 3), "#8c97a0", "#9aa4ac"]}
+        position={[0, 0.012, 0]}
+      />
+
+      {/* Central spawn pad with a hazard ring */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.014, 0]} receiveShadow>
+        <circleGeometry args={[6, 56]} />
+        <meshStandardMaterial color="#8d969d" roughness={0.8} metalness={0.1} />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.016, 0]}>
+        <ringGeometry args={[5.4, 6, 56]} />
+        <meshStandardMaterial color="#e0b020" roughness={0.7} />
       </mesh>
 
-      {/* Soft central plaza disc for a focal point */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.012, 0]} receiveShadow>
-        <circleGeometry args={[7, 48]} />
-        <meshStandardMaterial color="#c9b48a" roughness={1} />
-      </mesh>
-
-      {/* Hedges around the arena (camera collider) */}
+      {/* Facility perimeter walls (camera collider) */}
       <group ref={colliderRef}>
-        {hedges.map((w, i) => (
+        {walls.map((w, i) => (
           <group key={i} position={[w.x, 0, w.z]}>
-            <mesh position={[0, HEDGE_H / 2, 0]} castShadow receiveShadow>
-              <boxGeometry args={[w.w, HEDGE_H, w.d]} />
-              <meshStandardMaterial color="#3f7a39" roughness={1} flatShading />
+            <mesh position={[0, WALL_H / 2, 0]} castShadow receiveShadow>
+              <boxGeometry args={[w.w, WALL_H, w.d]} />
+              <meshStandardMaterial color="#9aa4ac" roughness={0.7} metalness={0.2} />
             </mesh>
-            {/* lighter trimmed top */}
-            <mesh position={[0, HEDGE_H + 0.08, 0]}>
-              <boxGeometry args={[w.w + 0.1, 0.18, w.d + 0.1]} />
-              <meshStandardMaterial color="#56913f" roughness={1} flatShading />
+            {/* hazard stripe at the base */}
+            <mesh position={[0, 0.45, 0]}>
+              <boxGeometry args={[w.w + 0.02, 0.5, w.d + 0.02]} />
+              <meshStandardMaterial color="#d9a21a" roughness={0.7} />
+            </mesh>
+            {/* top rail */}
+            <mesh position={[0, WALL_H + 0.1, 0]}>
+              <boxGeometry args={[w.w + 0.15, 0.2, w.d + 0.15]} />
+              <meshStandardMaterial color="#5b656b" roughness={0.6} metalness={0.4} />
             </mesh>
           </group>
         ))}
       </group>
 
-      {/* Walk-in houses (each registers its own walls as colliders) */}
+      {/* Walk-in lab modules (each registers its own walls as colliders) */}
       {buildings.map((b) => (
         <Building key={b.id} b={b} />
       ))}
 
-      {/* Props of varied shapes */}
+      {/* Lab equipment props */}
       {objects.map((o) => (
         <group key={o.id} position={[o.x, 0, o.z]}>
           <PropMesh kind={o.kind} sx={o.sx} sy={o.sy} sz={o.sz} color={o.color} />

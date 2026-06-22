@@ -11,7 +11,7 @@
  */
 export const CAM = {
   MIN_DIST: 0.4, // fully zoomed in → first person
-  MAX_DIST: 18,
+  MAX_DIST: 26, // bigger map → allow a wider view
   FP_DIST: 0.8, // <= this = first person view
   MIN_PITCH: -0.35, // radians (look slightly up from behind)
   MAX_PITCH: 1.45, // look down from above

@@ -67,26 +67,40 @@ export const PropMesh = forwardRef<THREE.MeshStandardMaterial, PropMeshProps>(
             </mesh>
           </group>
         );
-      case "bush":
+      case "tank": {
+        // Containment tank: cylinder body, domed top, metal base + bands.
+        const r = sx / 2;
+        const bodyH = sy * 0.82;
         return (
           <group onPointerDown={onPointerDown}>
-            <mesh position={[0, (sy || dia) / 2, 0]} castShadow receiveShadow>
-              <icosahedronGeometry args={[dia / 2, 1]} />
+            <mesh position={[0, bodyH / 2 + 0.18, 0]} castShadow receiveShadow>
+              <cylinderGeometry args={[r, r, bodyH, 18]} />
               <meshStandardMaterial
                 ref={matRef}
                 color={color}
-                roughness={1}
-                flatShading
+                roughness={0.4}
+                metalness={0.35}
                 transparent={transparent}
                 opacity={opacity}
               />
             </mesh>
-            <mesh position={[0, 0.18, 0]} castShadow>
-              <cylinderGeometry args={[0.12, 0.16, 0.4, 8]} />
-              <meshStandardMaterial color="#6b4a2a" roughness={1} />
+            <mesh position={[0, bodyH + 0.18, 0]} castShadow>
+              <sphereGeometry args={[r, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2]} />
+              <meshStandardMaterial color="#aeb8bf" roughness={0.5} metalness={0.5} />
             </mesh>
+            <mesh position={[0, 0.16, 0]} castShadow>
+              <cylinderGeometry args={[r * 1.12, r * 1.18, 0.3, 18]} />
+              <meshStandardMaterial color="#5b656b" roughness={0.8} metalness={0.4} />
+            </mesh>
+            {[0.35, 0.7].map((t, i) => (
+              <mesh key={i} position={[0, bodyH * t + 0.18, 0]}>
+                <cylinderGeometry args={[r + 0.03, r + 0.03, 0.1, 18]} />
+                <meshStandardMaterial color="#5b656b" roughness={0.6} metalness={0.5} />
+              </mesh>
+            ))}
           </group>
         );
+      }
       case "rock":
         return (
           <mesh

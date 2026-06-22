@@ -2,9 +2,9 @@
 
 Ein 3D-Multiplayer-**Versteck-Spiel** fürs Web. **Hider** tarnen sich, indem sie
 ihre Farbe bemalen, die Farbe von Objekten kopieren **oder sich direkt in ein
-Objekt verwandeln** (Kiste, Fass, Busch, Fels, Säule) – **Seeker** jagen,
-markieren und eliminieren sie in Echtzeit. Die Arena enthält **Gebäude** und
-Requisiten als Versteckmöglichkeiten.
+Objekt verwandeln** (Kiste, Fass, Tank, Block, Säule) – **Seeker** zielen per
+Tippen mit dem Laser. Die Arena ist eine große **Forschungsanlage** mit
+begehbaren Labormodulen als Versteckmöglichkeiten.
 
 > Läuft sofort im **Gastmodus** (ohne jegliche Konfiguration). Sobald du dein
 > eigenes **Firebase**-Projekt einträgst, schalten sich Konten, XP/Level,
@@ -21,7 +21,7 @@ Requisiten als Versteckmöglichkeiten.
 - **Lobby & Matchmaking**: Schnelles Spiel, öffentliche Räume, private Räume mit Code/Passwort
 - **Teams**: Hider vs. Seeker, automatische Zuteilung, Spielphasen (Verstecken → Jagd → Ende)
 - **Tarn-Mechanik**: Farbe bemalen, Objektfarbe kopieren **& in Objekte verwandeln** (serverseitig validiert; Bewegung bricht die Tarnung)
-- **Arena**: Gebäude + verschiedene Requisiten-Formen (Kiste/Fass/Busch/Fels/Säule)
+- **Arena**: große Forschungsanlage mit begehbaren Labormodulen + Requisiten (Kiste/Fass/Tank/Block/Säule)
 - **Accounts**: Registrierung, Login, Google, **Gastmodus** (alles via Firebase Auth)
 - **Fortschritt**: XP, Level, Statistiken, **Rangliste** (serverautoritativ – nicht cheatbar)
 - **Kosmetik**: Hider-Farben ausrüsten (Skins/Emotes als Grundgerüst angelegt)

@@ -1,14 +1,8 @@
-import {
-  ARENA_HALF,
-  COLOR_PALETTE,
-  PLAYER_RADIUS,
-  BUILDING_WALL_T,
-  BUILDING_DOOR_W,
-} from "./constants";
+import { ARENA_HALF, PLAYER_RADIUS, BUILDING_WALL_T, BUILDING_DOOR_W } from "./constants";
 
 /** Shape families a prop (and a disguised player) can take. */
-export type PropKind = "crate" | "barrel" | "bush" | "rock" | "pillar";
-export const PROP_KINDS: PropKind[] = ["crate", "barrel", "bush", "rock", "pillar"];
+export type PropKind = "crate" | "barrel" | "tank" | "rock" | "pillar";
+export const PROP_KINDS: PropKind[] = ["crate", "barrel", "tank", "rock", "pillar"];
 
 export interface MapObject {
   id: string;
@@ -34,8 +28,20 @@ export interface Building {
   roof: string;
 }
 
-const BUILDING_COLORS = ["#6b5b4f", "#7a6a5d", "#8a7a5a", "#5c6b6b", "#704a3a", "#5a6650"];
-const ROOF_COLORS = ["#3a2e26", "#46342a", "#2e3a3a", "#402a22"];
+// Lab-facility module colours: clean panels + metal trims.
+const BUILDING_COLORS = ["#c9d2d8", "#aeb8bf", "#d7dde0", "#9fb0b8", "#bcc6cc", "#8f9aa6"];
+const ROOF_COLORS = ["#5b656b", "#49525a", "#646e74", "#3f474d"];
+
+/** Lab prop palette: metals, hazard + chemical tones (varied so hiders can still blend). */
+export const LAB_PALETTE = [
+  "#b8c0c6", "#9aa3aa", "#7f8a92", "#c7ccd0", // metals / greys
+  "#e0b020", "#d98f1a", // hazard yellow / orange
+  "#37a85f", "#2bb39a", // chemical green / teal
+  "#3a78c2", "#4aa0d6", // coolant blue
+  "#c23a3a", "#a33", // warning red
+  "#6a4ea3", "#d05fb0", // reagent purple / magenta
+  "#e8edf0", "#54606a", // white / dark steel
+];
 
 /** Deterministic PRNG (mulberry32) so client & server build the identical map from a seed. */
 export function mulberry32(seed: number): () => number {
@@ -60,11 +66,12 @@ function sizeForKind(kind: PropKind, rand: () => number): { sx: number; sy: numb
       const d = 0.9 + rand() * 0.7;
       return { sx: d, sy: 1.1 + rand() * 0.8, sz: d };
     }
-    case "bush": {
-      const d = 1.3 + rand() * 1.4;
-      return { sx: d, sy: d * (0.7 + rand() * 0.3), sz: d };
+    case "tank": {
+      const d = 1.4 + rand() * 0.9;
+      return { sx: d, sy: 2.2 + rand() * 1.4, sz: d };
     }
     case "rock": {
+      // crate-stack / equipment block
       const d = 1.0 + rand() * 1.6;
       return { sx: d, sy: d * (0.6 + rand() * 0.4), sz: d };
     }
@@ -79,14 +86,15 @@ function sizeForKind(kind: PropKind, rand: () => number): { sx: number; sy: numb
 export function generateMap(seed: number): MapObject[] {
   const rand = mulberry32(seed || 1);
   const objects: MapObject[] = [];
-  const count = 12; // fewer scattered props — buildings carry the scene now
+  const count = 34; // lab equipment scattered across the larger facility
   const half = ARENA_HALF - 3;
   for (let i = 0; i < count; i++) {
     const x = (rand() * 2 - 1) * half;
     const z = (rand() * 2 - 1) * half;
+    if (Math.hypot(x, z) < 5) continue; // keep the central spawn pad clear
     const kind = PROP_KINDS[Math.floor(rand() * PROP_KINDS.length)];
     const { sx, sy, sz } = sizeForKind(kind, rand);
-    const color = COLOR_PALETTE[Math.floor(rand() * COLOR_PALETTE.length)];
+    const color = LAB_PALETTE[Math.floor(rand() * LAB_PALETTE.length)];
     objects.push({ id: `obj_${i}`, kind, x, z, sx, sy, sz, color });
   }
   return objects;
@@ -96,22 +104,22 @@ export function generateMap(seed: number): MapObject[] {
 export function generateBuildings(seed: number): Building[] {
   const rand = mulberry32(((seed || 1) ^ 0x9e3779b9) >>> 0);
   const out: Building[] = [];
-  const target = 6; // a small village of larger houses
-  const half = ARENA_HALF - 8;
+  const target = 11; // lab modules spread across the facility
+  const half = ARENA_HALF - 9;
   let attempts = 0;
-  while (out.length < target && attempts < 320) {
+  while (out.length < target && attempts < 600) {
     attempts++;
-    const w = 6 + rand() * 4.5; // bigger footprints (6–10.5)
-    const d = 6 + rand() * 4.5;
+    const w = 7 + rand() * 6; // big lab rooms (7–13)
+    const d = 7 + rand() * 6;
     const x = (rand() * 2 - 1) * half;
     const z = (rand() * 2 - 1) * half;
     const radius = Math.max(w, d) / 2;
-    // Keep the central plaza (seeker spawn) clear.
-    if (Math.hypot(x, z) < 10) continue;
-    // Reject overlaps so buildings never intersect.
+    // Keep the central spawn pad clear.
+    if (Math.hypot(x, z) < 12) continue;
+    // Reject overlaps so modules never intersect.
     let ok = true;
     for (const b of out) {
-      const minDist = radius + Math.max(b.w, b.d) / 2 + 1.8;
+      const minDist = radius + Math.max(b.w, b.d) / 2 + 2.5;
       if (Math.hypot(x - b.x, z - b.z) < minDist) {
         ok = false;
         break;
@@ -124,7 +132,7 @@ export function generateBuildings(seed: number): Building[] {
       z,
       w,
       d,
-      h: 3.8 + rand() * 2.4, // taller (3.8–6.2)
+      h: 4.0 + rand() * 2.0, // 4.0–6.0
       rotY: Math.floor(rand() * 4) * (Math.PI / 2),
       color: BUILDING_COLORS[Math.floor(rand() * BUILDING_COLORS.length)],
       roof: ROOF_COLORS[Math.floor(rand() * ROOF_COLORS.length)],

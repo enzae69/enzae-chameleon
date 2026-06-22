@@ -8,7 +8,7 @@ export const TICK_RATE = 20; // server simulation ticks per second
 export const FIXED_DT = 1 / TICK_RATE; // seconds per simulation tick
 
 // --- Arena ---
-export const ARENA_SIZE = 40; // square arena side length (world units), centered at origin
+export const ARENA_SIZE = 78; // square arena side length (world units), centered at origin
 export const ARENA_HALF = ARENA_SIZE / 2;
 export const WALL_THICKNESS = 1;
 
@@ -16,8 +16,8 @@ export const WALL_THICKNESS = 1;
 export const PLAYER_RADIUS = 0.5;
 export const PLAYER_HEIGHT = 1.6;
 export const PLAYER_EYE = 1.4;
-export const HIDER_SPEED = 6.0; // units per second
-export const SEEKER_SPEED = 6.6; // seekers are slightly faster
+export const HIDER_SPEED = 7.2; // units per second (bumped for the bigger map)
+export const SEEKER_SPEED = 7.9; // seekers are slightly faster
 
 // --- Interaction ranges ---
 export const SEEKER_TAG_RANGE = 2.4;
