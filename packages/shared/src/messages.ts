@@ -8,6 +8,7 @@ export const ClientMessage = {
   Disguise: "disguise",
   Undisguise: "undisguise",
   Shoot: "shoot",
+  Scan: "scan",
   Emote: "emote",
   Chat: "chat",
   ToggleReady: "toggle_ready",
@@ -27,6 +28,7 @@ export const ServerMessage = {
   Notice: "notice",
   Kicked: "kicked",
   Shot: "shot",
+  ScanResult: "scan_result",
   Error: "error",
 } as const;
 export type ServerMessageType = (typeof ServerMessage)[keyof typeof ServerMessage];
@@ -102,6 +104,10 @@ export interface EmoteEvent {
 }
 export interface NoticeEvent {
   text: string;
+}
+export interface ScanResultEvent {
+  nearby: boolean;
+  count: number;
 }
 export interface ErrorEvent {
   code: string;

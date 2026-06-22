@@ -45,6 +45,11 @@ export const LASER_HIT_RADIUS = 1.7; // how close to the tapped point counts as 
 export const TASER_RANGE = 3.4;
 export const TASER_COOLDOWN_MS = 1300;
 
+// --- Seeker radar ability ---
+export const SCAN_COOLDOWN_MS = 12000; // ~12s between scans
+export const SCAN_RADIUS = 16; // a hider within this counts as "nearby"
+export const SCAN_SHOW_MS = 2000; // how long the result is shown
+
 // Building structure (shared so client rendering & collision match the server).
 export const BUILDING_WALL_T = 0.26; // wall thickness
 export const BUILDING_DOOR_W = 2.0; // door opening width

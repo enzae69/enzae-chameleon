@@ -91,6 +91,9 @@ export default function HUD() {
   const disguise = useGame((s) => s.disguise);
   const undisguise = useGame((s) => s.undisguise);
   const laserCdUntil = useGame((s) => s.laserCdUntil);
+  const scan = useGame((s) => s.scan);
+  const scanCdUntil = useGame((s) => s.scanCdUntil);
+  const scanResult = useGame((s) => s.scanResult);
   const sendEmote = useGame((s) => s.sendEmote);
   const showToast = useUI((s) => s.showToast);
 
@@ -98,13 +101,14 @@ export default function HUD() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [, force] = useState(0);
 
-  // Tick while the laser is recharging so the status updates.
+  // Tick while laser/radar are recharging or a scan result is showing.
   const laserCd = Math.max(0, laserCdUntil - Date.now());
+  const scanCd = Math.max(0, scanCdUntil - Date.now());
+  const scanShowing = scanResult && Date.now() < scanResult.until;
   useEffect(() => {
-    if (laserCd <= 0) return;
-    const t = window.setInterval(() => force((n) => n + 1), 100);
+    const t = window.setInterval(() => force((n) => n + 1), 120);
     return () => window.clearInterval(t);
-  }, [laserCd > 0]);
+  }, []);
 
   const self = roster.find((r) => r.sessionId === selfId);
   const team = self?.team ?? "hider";
@@ -189,14 +193,33 @@ export default function HUD() {
           </div>
 
           {showSeekerTools && (
-            <div
-              className={`glass rounded-full px-4 py-2 text-sm font-semibold ${
-                laserCd > 0 ? "text-white/50" : "text-red-300"
-              }`}
-            >
-              {laserCd > 0
-                ? `⚡ Lädt… ${(laserCd / 1000).toFixed(1)}s`
-                : "⚡ Tippe zum Schießen"}
+            <div className="flex flex-col items-end gap-2">
+              {scanShowing && (
+                <div
+                  className={`animate-pop rounded-full px-4 py-2 text-sm font-bold ${
+                    scanResult!.nearby ? "bg-red-600/80 text-white" : "bg-cham-600/80 text-white"
+                  }`}
+                >
+                  {scanResult!.nearby ? "⚠️ Jemand in der Nähe!" : "✓ Niemand in der Nähe"}
+                </div>
+              )}
+              <div
+                className={`glass rounded-full px-4 py-2 text-sm font-semibold ${
+                  laserCd > 0 ? "text-white/50" : "text-red-300"
+                }`}
+              >
+                {laserCd > 0
+                  ? `⚡ Lädt… ${(laserCd / 1000).toFixed(1)}s`
+                  : "⚡ Tippe zum Schießen"}
+              </div>
+              <button
+                className={`px-5 py-3 text-base ${scanCd > 0 ? "btn-ghost opacity-60" : "btn-primary"}`}
+                onClick={scan}
+                disabled={scanCd > 0}
+                title="Radar – zeigt 2s, ob ein Hider in der Nähe ist"
+              >
+                {scanCd > 0 ? `📡 ${(scanCd / 1000).toFixed(0)}s` : "📡 Radar"}
+              </button>
             </div>
           )}
 

@@ -5,6 +5,8 @@ import {
   ServerMessage,
   LASER_COOLDOWN_MS,
   TASER_COOLDOWN_MS,
+  SCAN_COOLDOWN_MS,
+  SCAN_SHOW_MS,
   type GamePhase,
   type Team,
   type RoomListing,
@@ -17,6 +19,7 @@ import {
   type EmoteEvent,
   type ErrorEvent,
   type ShotEvent,
+  type ScanResultEvent,
   type WeaponType,
 } from "@enzae/shared";
 import { SERVER_URL, HTTP_URL } from "../config";
@@ -66,6 +69,8 @@ interface GameStore {
   mapSeed: number;
   laserCdUntil: number;
   taserCdUntil: number;
+  scanCdUntil: number;
+  scanResult: (ScanResultEvent & { until: number }) | null;
 
   roster: RosterEntry[];
   chat: ChatLine[];
@@ -87,6 +92,7 @@ interface GameStore {
   disguise: () => void;
   undisguise: () => void;
   shoot: (weapon: WeaponType, targetSessionId?: string, aimX?: number, aimZ?: number) => void;
+  scan: () => void;
   toggleReady: () => void;
   requestStart: () => void;
   kick: (targetSessionId: string) => void;
@@ -205,6 +211,9 @@ export const useGame = create<GameStore>((set, get) => {
         hit: m.hit,
       });
     });
+    room.onMessage(ServerMessage.ScanResult, (m: ScanResultEvent) => {
+      set({ scanResult: { ...m, until: Date.now() + SCAN_SHOW_MS } });
+    });
     room.onMessage(ServerMessage.Eliminated, () => {});
     room.onMessage(ServerMessage.Kicked, () => {
       kicked = true;
@@ -288,6 +297,8 @@ export const useGame = create<GameStore>((set, get) => {
     mapSeed: 1,
     laserCdUntil: 0,
     taserCdUntil: 0,
+    scanCdUntil: 0,
+    scanResult: null,
 
     roster: [],
     chat: [],
@@ -371,6 +382,12 @@ export const useGame = create<GameStore>((set, get) => {
       const cd = weapon === "laser" ? LASER_COOLDOWN_MS : TASER_COOLDOWN_MS;
       const until = Date.now() + cd;
       set(weapon === "laser" ? { laserCdUntil: until } : { taserCdUntil: until });
+    },
+    scan: () => {
+      const room = get().room;
+      if (!room || Date.now() < get().scanCdUntil) return;
+      room.send(ClientMessage.Scan, {});
+      set({ scanCdUntil: Date.now() + SCAN_COOLDOWN_MS });
     },
     toggleReady: () => get().room?.send(ClientMessage.ToggleReady, {}),
     requestStart: () => get().room?.send(ClientMessage.RequestStart, {}),

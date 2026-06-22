@@ -24,6 +24,8 @@ import {
   LASER_HIT_RADIUS,
   TASER_RANGE,
   TASER_COOLDOWN_MS,
+  SCAN_COOLDOWN_MS,
+  SCAN_RADIUS,
   DEFAULT_HIDER_COLOR,
   SEEKER_COLOR,
   ARENA_HALF,
@@ -79,6 +81,7 @@ export class GameRoom extends Room<GameState> {
   private tags = new Map<string, number>(); // sessionId -> eliminations this match
   private kickedIds = new Set<string>(); // sessions removed by the host (skip reconnection)
   private lastShot = new Map<string, { laser: number; taser: number }>(); // per-weapon cooldown
+  private lastScan = new Map<string, number>(); // seeker radar cooldown
   private buildings: Building[] = []; // collision geometry for the current map
   private walls: WallSeg[] = []; // room/perimeter/deck wall collision
   private matchStart = 0;
@@ -237,6 +240,8 @@ export class GameRoom extends Room<GameState> {
 
     this.onMessage(ClientMessage.Shoot, (client, msg: ShootPayload) => this.handleShoot(client, msg));
 
+    this.onMessage(ClientMessage.Scan, (client) => this.handleScan(client));
+
     this.onMessage(ClientMessage.ToggleReady, (client) => {
       if (this.state.phase !== "waiting") return;
       const p = this.state.players.get(client.sessionId);
@@ -374,6 +379,22 @@ export class GameRoom extends Room<GameState> {
     if (hit) this.checkWinConditions();
   }
 
+  private handleScan(client: Client) {
+    if (this.state.phase !== "hunting") return;
+    const seeker = this.state.players.get(client.sessionId);
+    if (!seeker || seeker.team !== "seeker" || seeker.isEliminated) return;
+    const now = Date.now();
+    if (now - (this.lastScan.get(client.sessionId) || 0) < SCAN_COOLDOWN_MS) return;
+    this.lastScan.set(client.sessionId, now);
+
+    let count = 0;
+    this.state.players.forEach((p) => {
+      if (p.team !== "hider" || p.isEliminated || !p.connected) return;
+      if (dist2D(seeker.x, seeker.z, p.x, p.z) <= SCAN_RADIUS) count++;
+    });
+    client.send(ServerMessage.ScanResult, { nearby: count > 0, count });
+  }
+
   private clearDisguise(p: Player) {
     if (!p.disguiseKind) return;
     p.disguiseKind = "";
@@ -434,6 +455,7 @@ export class GameRoom extends Room<GameState> {
     this.walls = generateWalls(this.state.mapSeed);
     this.tags.clear();
     this.lastShot.clear();
+    this.lastScan.clear();
 
     const seekers = pickSeekers(connected.map((p) => p.sessionId));
     connected.forEach((p) => {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import {
@@ -22,6 +22,7 @@ import { colliders } from "./colliders";
 import { targets, ownerSessionId } from "./targets";
 import { PropMesh } from "./Prop";
 import Blaster from "./Blaster";
+import Character from "./Character";
 
 const BODY_LEN = PLAYER_HEIGHT - 2 * PLAYER_RADIUS;
 const SEND_INTERVAL = 1 / 20;
@@ -42,6 +43,10 @@ export default function LocalController() {
   const [disguise, setDisguise] = useState<{ kind: string; sx: number; sy: number; sz: number } | null>(
     null
   );
+  // Drives the character model (no per-frame re-render).
+  const colorRef = useRef("#7ec850");
+  const speedRef = useRef(0);
+  const elimRef = useRef(false);
 
   // Camera working vectors (reused each frame, no per-frame allocation).
   const ray = useRef(new THREE.Raycaster());
@@ -176,6 +181,10 @@ export default function LocalController() {
       mat.current.transparent = eliminated;
       mat.current.opacity = eliminated ? 0.3 : 1;
     }
+    // Feed the character model (used when not disguised).
+    if (self) colorRef.current = self.color;
+    elimRef.current = eliminated;
+    speedRef.current = Math.min(1, len);
 
     // --- Roblox-style orbit camera ------------------------------------------
     const pitch = camState.pitch;
@@ -228,14 +237,16 @@ export default function LocalController() {
         <PropMesh ref={mat} kind={disguise.kind} sx={disguise.sx} sy={disguise.sy} sz={disguise.sz} />
       ) : (
         <>
-          <mesh position={[0, PLAYER_HEIGHT / 2, 0]} castShadow>
-            <capsuleGeometry args={[PLAYER_RADIUS, BODY_LEN, 4, 12]} />
-            <meshStandardMaterial ref={mat} />
-          </mesh>
-          <mesh position={[0, PLAYER_HEIGHT * 0.62, PLAYER_RADIUS]}>
-            <sphereGeometry args={[0.13, 8, 8]} />
-            <meshStandardMaterial color="#0a0a0a" />
-          </mesh>
+          <Suspense
+            fallback={
+              <mesh position={[0, PLAYER_HEIGHT / 2, 0]} castShadow>
+                <capsuleGeometry args={[PLAYER_RADIUS, BODY_LEN, 4, 12]} />
+                <meshStandardMaterial ref={mat} />
+              </mesh>
+            }
+          >
+            <Character colorRef={colorRef} speedRef={speedRef} eliminatedRef={elimRef} />
+          </Suspense>
           {selfTeam === "seeker" && <Blaster />}
         </>
       )}

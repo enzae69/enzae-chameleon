@@ -1,13 +1,14 @@
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import * as THREE from "three";
-import { PLAYER_RADIUS, PLAYER_HEIGHT } from "@enzae/shared";
+import { PLAYER_RADIUS, PLAYER_HEIGHT, HIDER_SPEED } from "@enzae/shared";
 import { live } from "../net/live";
 import { useGame } from "../store/gameStore";
 import { registerTarget, unregisterTarget } from "./targets";
 import { PropMesh } from "./Prop";
 import Blaster from "./Blaster";
+import Character from "./Character";
 
 const BODY_LEN = PLAYER_HEIGHT - 2 * PLAYER_RADIUS;
 
@@ -34,11 +35,24 @@ function RemotePlayer({
   const init = useRef(false);
   const lastKind = useRef("");
   const [disguise, setDisguise] = useState<Disguise | null>(null);
+  // Drives the character model (no per-frame re-render).
+  const colorRef = useRef("#7ec850");
+  const speedRef = useRef(0);
+  const elimRef = useRef(false);
+  const prev = useRef({ x: 0, z: 0 });
 
   useFrame((_, dt) => {
     const snap = live.players.get(id);
     const g = group.current;
     if (!snap || !g) return;
+
+    // Approximate movement speed from how far they moved (for the walk bob).
+    const moved = Math.hypot(snap.x - prev.current.x, snap.z - prev.current.z);
+    prev.current.x = snap.x;
+    prev.current.z = snap.z;
+    speedRef.current = Math.min(1, moved / (HIDER_SPEED * Math.max(dt, 0.001)));
+    colorRef.current = snap.color;
+    elimRef.current = snap.isEliminated;
 
     if (!init.current) {
       g.position.set(snap.x, 0, snap.z);
@@ -84,14 +98,16 @@ function RemotePlayer({
         <PropMesh ref={mat} kind={disguise.kind} sx={disguise.sx} sy={disguise.sy} sz={disguise.sz} />
       ) : (
         <>
-          <mesh position={[0, PLAYER_HEIGHT / 2, 0]} castShadow>
-            <capsuleGeometry args={[PLAYER_RADIUS, BODY_LEN, 4, 12]} />
-            <meshStandardMaterial ref={mat} roughness={0.6} />
-          </mesh>
-          <mesh position={[0, PLAYER_HEIGHT * 0.62, PLAYER_RADIUS]}>
-            <sphereGeometry args={[0.12, 8, 8]} />
-            <meshStandardMaterial color="#0a0a0a" />
-          </mesh>
+          <Suspense
+            fallback={
+              <mesh position={[0, PLAYER_HEIGHT / 2, 0]} castShadow>
+                <capsuleGeometry args={[PLAYER_RADIUS, BODY_LEN, 4, 12]} />
+                <meshStandardMaterial ref={mat} roughness={0.6} />
+              </mesh>
+            }
+          >
+            <Character colorRef={colorRef} speedRef={speedRef} eliminatedRef={elimRef} />
+          </Suspense>
           {team === "seeker" && <Blaster />}
         </>
       )}
