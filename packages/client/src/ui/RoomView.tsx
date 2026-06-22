@@ -4,71 +4,82 @@ import HUD from "./HUD";
 import { useGame } from "../store/gameStore";
 import { useUI } from "../store/uiStore";
 
-/** Full-screen role reveal shown when a round begins. */
-function RoleAnnounce() {
+// How long the "YOU ARE …" role reveal stays on screen at the start of a round.
+const REVEAL_MS = 3000;
+
+/**
+ * Start-of-round overlay. Two stages, driven purely off the live phase so it
+ * can never get "stuck":
+ *   1. Role reveal ("YOU ARE THE SEEKER/HIDER") for everyone, the first 3s.
+ *   2. Seekers then "count" with eyes closed (black screen) until hiding ends.
+ * It vanishes instantly when the player is eliminated or the phase leaves
+ * "hiding" — no timers to clear, so there is nothing left hanging around.
+ */
+function RoundIntro() {
   const phase = useGame((s) => s.phase);
+  const phaseEndsAt = useGame((s) => s.phaseEndsAt);
   const roster = useGame((s) => s.roster);
   const selfId = useGame((s) => s.selfId);
-  const team = roster.find((r) => r.sessionId === selfId)?.team ?? "hider";
-  const [show, setShow] = useState(false);
-  const prev = useRef(phase);
+  const self = roster.find((r) => r.sessionId === selfId);
+  const team = self?.team ?? "hider";
+  const eliminated = self?.isEliminated ?? false;
+
+  // Remember when the current hiding phase started so the reveal is time-boxed.
+  const startedAt = useRef(0);
+  const wasHiding = useRef(false);
+  const [, force] = useState(0);
 
   useEffect(() => {
-    if (phase === "hiding" && prev.current !== "hiding") {
-      setShow(true);
-      const t = window.setTimeout(() => setShow(false), 3000);
-      prev.current = phase;
-      return () => window.clearTimeout(t);
-    }
-    prev.current = phase;
+    if (phase === "hiding" && !wasHiding.current) startedAt.current = Date.now();
+    wasHiding.current = phase === "hiding";
   }, [phase]);
 
-  if (!show) return null;
-  const seeker = team === "seeker";
-
-  return (
-    <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center p-4">
-      <div
-        className={`animate-pop rounded-3xl border-4 px-10 py-8 text-center backdrop-blur-md ${
-          seeker ? "border-red-500 bg-red-950/50" : "border-cham-400 bg-cham-950/40"
-        }`}
-      >
-        <div className="text-7xl drop-shadow-lg">{seeker ? "🔴" : "🟢"}</div>
-        <h2 className="font-display mt-2 text-4xl font-black tracking-wide sm:text-5xl">
-          {seeker ? "YOU ARE THE SEEKER" : "YOU ARE A HIDER"}
-        </h2>
-        <p className="mt-2 text-xl font-semibold text-white/80 sm:text-2xl">
-          {seeker ? "Catch the hiders! 🎯" : "Versteck & tarne dich! 🦎"}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-/** The seeker "counts" with eyes closed (black screen) while hiders hide. */
-function SeekerBlackout() {
-  const phase = useGame((s) => s.phase);
-  const roster = useGame((s) => s.roster);
-  const selfId = useGame((s) => s.selfId);
-  const phaseEndsAt = useGame((s) => s.phaseEndsAt);
-  const team = roster.find((r) => r.sessionId === selfId)?.team;
-  const [, force] = useState(0);
+  // Re-render on a tick while hiding so the reveal expires and the countdown moves.
   useEffect(() => {
-    const t = window.setInterval(() => force((n) => n + 1), 250);
+    if (phase !== "hiding") return;
+    const t = window.setInterval(() => force((n) => n + 1), 150);
     return () => window.clearInterval(t);
-  }, []);
+  }, [phase]);
 
-  if (phase !== "hiding" || team !== "seeker") return null;
-  const left = phaseEndsAt ? Math.max(0, Math.ceil((phaseEndsAt - Date.now()) / 1000)) : 0;
+  if (phase !== "hiding" || eliminated) return null;
+  const seeker = team === "seeker";
+  const sinceStart = startedAt.current ? Date.now() - startedAt.current : Infinity;
 
-  return (
-    <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black text-center">
-      <div className="text-8xl">🙈</div>
-      <h2 className="font-display mt-3 text-4xl font-black text-white">Augen zu!</h2>
-      <p className="mt-1 text-lg text-white/60">Die Hider verstecken sich…</p>
-      <div className="mt-6 font-display text-7xl font-black text-cham-300">{left}</div>
-    </div>
-  );
+  // Stage 1 — role reveal (both teams), on top of everything.
+  if (sinceStart < REVEAL_MS) {
+    return (
+      <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center p-4">
+        <div
+          className={`animate-pop rounded-3xl border-4 px-10 py-8 text-center backdrop-blur-md ${
+            seeker ? "border-red-500 bg-red-950/60" : "border-cham-400 bg-cham-950/50"
+          }`}
+        >
+          <div className="text-7xl drop-shadow-lg">{seeker ? "🔴" : "🟢"}</div>
+          <h2 className="font-display mt-2 text-4xl font-black tracking-wide sm:text-5xl">
+            {seeker ? "YOU ARE THE SEEKER" : "YOU ARE A HIDER"}
+          </h2>
+          <p className="mt-2 text-xl font-semibold text-white/80 sm:text-2xl">
+            {seeker ? "Catch the hiders! 🎯" : "Versteck & tarne dich! 🦎"}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Stage 2 — seekers wait with eyes closed until the hunt begins.
+  if (seeker) {
+    const left = phaseEndsAt ? Math.max(0, Math.ceil((phaseEndsAt - Date.now()) / 1000)) : 0;
+    return (
+      <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black text-center">
+        <div className="text-8xl">🙈</div>
+        <h2 className="font-display mt-3 text-4xl font-black text-white">Augen zu!</h2>
+        <p className="mt-1 text-lg text-white/60">Die Hider verstecken sich…</p>
+        <div className="mt-6 font-display text-7xl font-black text-cham-300">{left}</div>
+      </div>
+    );
+  }
+
+  return null;
 }
 
 function WaitingOverlay() {
@@ -197,8 +208,7 @@ export default function RoomView() {
     <div className="fixed inset-0 bg-black">
       <GameCanvas />
       <HUD />
-      <RoleAnnounce />
-      <SeekerBlackout />
+      <RoundIntro />
       {phase === "waiting" && <WaitingOverlay />}
       {phase === "ended" && <EndOverlay />}
     </div>
