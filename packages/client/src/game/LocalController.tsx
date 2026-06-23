@@ -18,6 +18,7 @@ import {
 } from "@enzae/shared";
 import { live } from "../net/live";
 import { useGame } from "../store/gameStore";
+import { useUI } from "../store/uiStore";
 import { attachKeyboard, getMoveIntent } from "./input";
 import { attachCameraInput, resetCamera, camState, CAM } from "./cameraInput";
 import { colliders } from "./colliders";
@@ -29,6 +30,7 @@ import Character from "./Character";
 const BODY_LEN = PLAYER_HEIGHT - 2 * PLAYER_RADIUS;
 const SEND_INTERVAL = 1 / 20;
 const HEAD_Y = PLAYER_HEIGHT * 0.9; // camera focus / eye height
+const PAINT_DIST = 2.4; // close-up camera distance while painting
 
 export default function LocalController() {
   const seed = useGame((s) => s.mapSeed);
@@ -42,6 +44,8 @@ export default function LocalController() {
   const acc = useRef(0);
   const inited = useRef(false);
   const lastKind = useRef("");
+  const paintPrev = useRef(false);
+  const savedDist = useRef(camState.distance);
   const [disguise, setDisguise] = useState<{ kind: string; sx: number; sy: number; sz: number } | null>(
     null
   );
@@ -115,7 +119,16 @@ export default function LocalController() {
     const team = self?.team ?? "hider";
     const eliminated = self?.isEliminated ?? false;
     const isPlayablePhase = phase === "hiding" || phase === "hunting" || phase === "waiting";
-    const frozen = eliminated || (phase === "hiding" && team === "seeker") || !isPlayablePhase;
+
+    // Paint mode: zoom right in on the character and hold still while painting.
+    const paint = useUI.getState().paintMode;
+    if (paint && !paintPrev.current) savedDist.current = camState.distance;
+    if (paint) camState.distance += (PAINT_DIST - camState.distance) * Math.min(1, dt * 8);
+    else if (paintPrev.current) camState.distance = savedDist.current;
+    paintPrev.current = paint;
+
+    const frozen =
+      paint || eliminated || (phase === "hiding" && team === "seeker") || !isPlayablePhase;
 
     // --- Camera-relative movement -------------------------------------------
     // Input intent is in screen space (up = -z). Rotate it by the camera yaw so

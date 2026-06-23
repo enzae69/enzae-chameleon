@@ -81,6 +81,55 @@ function ChatPanel({ onClose }: { onClose: () => void }) {
   );
 }
 
+/** "Paint yourself" panel: full palette + free colour picker, shown zoomed in. */
+function PaintPanel({
+  current,
+  onPick,
+  onClose,
+}: {
+  current: string;
+  onPick: (c: string) => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="pointer-events-auto absolute inset-x-0 bottom-0 z-20 flex justify-center p-4">
+      <div className="glass w-full max-w-md rounded-2xl p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span
+              className="h-6 w-6 rounded-full ring-2 ring-white/40"
+              style={{ backgroundColor: current }}
+            />
+            <span className="font-display text-lg font-bold">🎨 Anmalen</span>
+          </div>
+          <button className="btn-primary px-4 py-2 text-sm" onClick={onClose}>
+            Fertig ✓
+          </button>
+        </div>
+        <div className="grid grid-cols-8 gap-1.5">
+          {COLOR_PALETTE.map((c) => (
+            <button
+              key={c}
+              className="aspect-square rounded-md ring-1 ring-white/10 active:scale-90"
+              style={{ backgroundColor: c }}
+              onClick={() => onPick(c)}
+            />
+          ))}
+        </div>
+        <label className="mt-3 flex items-center justify-center gap-2 text-sm text-white/70">
+          Eigene Farbe
+          <input
+            type="color"
+            value={current}
+            onChange={(e) => onPick(e.target.value)}
+            className="h-9 w-16 cursor-pointer rounded-md bg-transparent"
+          />
+        </label>
+      </div>
+    </div>
+  );
+}
+
 export default function HUD() {
   const leave = useGame((s) => s.leave);
   const phase = useGame((s) => s.phase);
@@ -88,17 +137,16 @@ export default function HUD() {
   const selfId = useGame((s) => s.selfId);
   const copyColor = useGame((s) => s.copyColor);
   const changeColor = useGame((s) => s.changeColor);
-  const disguise = useGame((s) => s.disguise);
-  const undisguise = useGame((s) => s.undisguise);
   const laserCdUntil = useGame((s) => s.laserCdUntil);
   const scan = useGame((s) => s.scan);
   const scanCdUntil = useGame((s) => s.scanCdUntil);
   const scanResult = useGame((s) => s.scanResult);
   const sendEmote = useGame((s) => s.sendEmote);
   const showToast = useUI((s) => s.showToast);
+  const paintMode = useUI((s) => s.paintMode);
+  const setPaintMode = useUI((s) => s.setPaintMode);
 
   const [chatOpen, setChatOpen] = useState(false);
-  const [paletteOpen, setPaletteOpen] = useState(false);
   const [, force] = useState(0);
 
   // Tick while laser/radar are recharging or a scan result is showing.
@@ -113,11 +161,15 @@ export default function HUD() {
   const self = roster.find((r) => r.sessionId === selfId);
   const team = self?.team ?? "hider";
   const eliminated = self?.isEliminated ?? false;
-  const disguised = self?.disguised ?? false;
   const aliveHiders = roster.filter((r) => r.team === "hider" && !r.isEliminated).length;
 
   const showHiderTools = team === "hider" && !eliminated && phase !== "ended";
   const showSeekerTools = team === "seeker" && !eliminated && phase === "hunting";
+
+  // Leave paint mode if we can no longer paint (got caught, round ended, …).
+  useEffect(() => {
+    if (paintMode && !showHiderTools) setPaintMode(false);
+  }, [paintMode, showHiderTools, setPaintMode]);
 
   return (
     <div className="pointer-events-none absolute inset-0 z-10 select-none">
@@ -157,7 +209,6 @@ export default function HUD() {
             {team === "seeker" ? "🔴 Seeker" : "🟢 Hider"}
           </span>
           {eliminated && <span className="ml-2 text-white/50">· raus (Zuschauer)</span>}
-          {disguised && <span className="ml-2 text-amber-300">· 🪄 verwandelt</span>}
           <span className="ml-3 text-white/60">🫥 {aliveHiders} übrig</span>
         </div>
       </div>
@@ -223,49 +274,30 @@ export default function HUD() {
             </div>
           )}
 
-          {showHiderTools && (
+          {showHiderTools && !paintMode && (
             <div className="flex items-center gap-2">
-              {paletteOpen && (
-                <div className="glass grid grid-cols-5 gap-1 rounded-2xl p-2">
-                  {COLOR_PALETTE.map((c) => (
-                    <button
-                      key={c}
-                      className="h-7 w-7 rounded-md active:scale-90"
-                      style={{ backgroundColor: c }}
-                      onClick={() => {
-                        changeColor(c);
-                        setPaletteOpen(false);
-                      }}
-                    />
-                  ))}
-                </div>
-              )}
-              <button
-                className="btn-ghost px-4 py-4"
-                onClick={() => setPaletteOpen((o) => !o)}
-                title="Farbe wählen"
-              >
-                🎨
-              </button>
               <button className="btn-ghost px-4 py-4" onClick={copyColor} title="Farbe vom nächsten Objekt kopieren">
                 🦎 Tarnen
               </button>
-              {disguised && (
-                <button className="btn-ghost px-4 py-4" onClick={undisguise} title="Tarnung aufheben">
-                  🙅
-                </button>
-              )}
               <button
                 className="btn-primary px-5 py-4 text-base"
-                onClick={disguise}
-                title="In das nächste Objekt verwandeln"
+                onClick={() => setPaintMode(true)}
+                title="Dich anmalen"
               >
-                🪄 {disguised ? "Neu verwandeln" : "Verwandeln"}
+                🎨 Malen
               </button>
             </div>
           )}
         </div>
       </div>
+
+      {paintMode && showHiderTools && (
+        <PaintPanel
+          current={self?.color ?? "#7ec850"}
+          onPick={changeColor}
+          onClose={() => setPaintMode(false)}
+        />
+      )}
     </div>
   );
 }
