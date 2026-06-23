@@ -26,9 +26,9 @@ export const BOUND_MAX_X = ARENA_HALF + DECK_DEPTH + 2;
 export const BOUND_MAX_Z = ARENA_HALF + 2;
 
 // --- Player ---
-export const PLAYER_RADIUS = 0.5;
-export const PLAYER_HEIGHT = 1.6;
-export const PLAYER_EYE = 1.4;
+export const PLAYER_RADIUS = 0.32;
+export const PLAYER_HEIGHT = 1.0;
+export const PLAYER_EYE = 0.9;
 export const HIDER_SPEED = 7.2; // units per second (bumped for the bigger map)
 export const SEEKER_SPEED = 7.9; // seekers are slightly faster
 

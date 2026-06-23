@@ -22,7 +22,7 @@ export const CAM = {
 export const camState = {
   yaw: 0, // azimuth around the character
   pitch: 0.55, // elevation
-  distance: 9, // current zoom distance
+  distance: 6.5, // current zoom distance
   invertY: typeof localStorage !== "undefined" && localStorage.getItem("invertY") === "1",
 };
 
@@ -40,7 +40,7 @@ export function toggleInvertY(): boolean {
 export function resetCamera(): void {
   camState.yaw = 0;
   camState.pitch = 0.55;
-  camState.distance = 9;
+  camState.distance = 6.5;
 }
 
 const clamp = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v);

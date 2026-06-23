@@ -30,7 +30,7 @@ import Character from "./Character";
 const BODY_LEN = PLAYER_HEIGHT - 2 * PLAYER_RADIUS;
 const SEND_INTERVAL = 1 / 20;
 const HEAD_Y = PLAYER_HEIGHT * 0.9; // camera focus / eye height
-const PAINT_DIST = 2.4; // close-up camera distance while painting
+const PAINT_DIST = 1.6; // close-up camera distance while painting
 
 export default function LocalController() {
   const seed = useGame((s) => s.mapSeed);
