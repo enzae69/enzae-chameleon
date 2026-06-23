@@ -62,8 +62,12 @@ export default function Character({
   }, [scene]);
 
   // Auto-fit: scale to PLAYER_HEIGHT, centred on x/z, feet at y=0.
+  // Measure the ORIGINAL scene, not the SkeletonUtils clone — a cloned skinned
+  // mesh misreports its bounds (the node scale moves onto the skeleton), which
+  // made the character render several times too large.
   const { scale, offset } = useMemo(() => {
-    const box = new THREE.Box3().setFromObject(model);
+    scene.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(scene);
     const size = new THREE.Vector3();
     const center = new THREE.Vector3();
     box.getSize(size);
@@ -73,7 +77,7 @@ export default function Character({
       scale: s,
       offset: new THREE.Vector3(-center.x * s, -box.min.y * s, -center.z * s),
     };
-  }, [model]);
+  }, [scene]);
 
   const mats = useRef<THREE.MeshStandardMaterial[]>([]);
   const swings = useRef<Record<string, Swing>>({});
