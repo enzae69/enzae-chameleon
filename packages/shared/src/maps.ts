@@ -18,7 +18,9 @@ export interface MapGrid {
 export interface MapGeo {
   id: string;
   scale: number; // uniform scale applied to the GLB
+  offsetX: number; // horizontal shift so the footprint is centred on the origin
   offsetY: number; // vertical shift so the floor sits at y=0
+  offsetZ: number;
   bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
   spawn: { x: number; z: number; radius: number };
   grid: MapGrid;

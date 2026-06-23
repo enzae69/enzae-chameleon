@@ -25,5 +25,22 @@ export default function MapModel({ def }: { def: MapDef }) {
     return c;
   }, [scene]);
 
-  return <primitive object={model} scale={geo.scale} position={[0, geo.offsetY, 0]} />;
+  const b = geo.bounds;
+  const fw = b.maxX - b.minX + 6;
+  const fd = b.maxZ - b.minZ + 6;
+
+  return (
+    <group>
+      {/* Safety floor so the player always has visible ground (fills any gaps). */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.05, 0]} receiveShadow>
+        <planeGeometry args={[fw, fd]} />
+        <meshStandardMaterial color="#33343a" roughness={1} metalness={0} />
+      </mesh>
+      <primitive
+        object={model}
+        scale={geo.scale}
+        position={[geo.offsetX, geo.offsetY, geo.offsetZ]}
+      />
+    </group>
+  );
 }
