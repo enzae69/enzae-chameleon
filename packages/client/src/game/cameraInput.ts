@@ -11,7 +11,7 @@
  */
 export const CAM = {
   MIN_DIST: 0.4, // fully zoomed in → first person
-  MAX_DIST: 15, // cap how far out the player can zoom
+  MAX_DIST: 12, // cap how far out the player can zoom
   FP_DIST: 0.8, // <= this = first person view
   MIN_PITCH: -0.35, // radians (look slightly up from behind)
   MAX_PITCH: 1.45, // look down from above
