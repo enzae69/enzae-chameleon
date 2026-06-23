@@ -1,8 +1,10 @@
-import { useMemo } from "react";
+import { Suspense, useMemo } from "react";
 import { Canvas } from "@react-three/fiber";
 import * as THREE from "three";
+import { mapDef } from "@enzae/shared";
 import { useGame } from "../store/gameStore";
 import Arena from "./Arena";
+import MapModel from "./MapModel";
 import RemotePlayers from "./RemotePlayers";
 import LocalController from "./LocalController";
 import Shots from "./Shots";
@@ -54,6 +56,8 @@ function SkyDome() {
 
 export default function GameCanvas() {
   const seed = useGame((s) => s.mapSeed);
+  const mapId = useGame((s) => s.mapId);
+  const def = mapDef(mapId);
 
   return (
     <Canvas
@@ -88,7 +92,13 @@ export default function GameCanvas() {
       {/* Cool fill from the opposite side. */}
       <directionalLight position={[-26, 16, -20]} intensity={0.4} color="#bcd0e0" />
 
-      <Arena seed={seed} />
+      {def.geo ? (
+        <Suspense fallback={null}>
+          <MapModel def={def} />
+        </Suspense>
+      ) : (
+        <Arena seed={seed} />
+      )}
       <RemotePlayers />
       <LocalController />
       <Shots />

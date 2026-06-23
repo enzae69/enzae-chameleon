@@ -2,16 +2,23 @@ import {
   HIDER_SPEED,
   SEEKER_SPEED,
   SEEKER_RATIO,
-  BOUND_MIN,
-  BOUND_MAX_X,
-  BOUND_MAX_Z,
   Player,
   collideBuildings,
   collideWalls,
+  collideGrid,
   type Building,
   type WallSeg,
+  type MapGrid,
   type GamePhase,
 } from "@enzae/shared";
+
+/** Everything movement needs to know about the active map. */
+export interface MoveWorld {
+  bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
+  walls?: WallSeg[];
+  buildings?: Building[];
+  grid?: MapGrid; // GLB maps collide against a baked grid instead
+}
 
 export interface InputState {
   seq: number;
@@ -44,8 +51,7 @@ export function integrate(
   input: InputState,
   dt: number,
   phase: GamePhase,
-  buildings: Building[] = [],
-  walls: WallSeg[] = []
+  world: MoveWorld
 ): void {
   player.rotationY = input.rotationY;
   if (!canMove(player, phase)) return;
@@ -58,15 +64,21 @@ export function integrate(
     mz /= len;
   }
   const speed = speedFor(player.team);
-  let nx = clamp(player.x + mx * speed * dt, BOUND_MIN, BOUND_MAX_X);
-  let nz = clamp(player.z + mz * speed * dt, BOUND_MIN, BOUND_MAX_Z);
-  if (buildings.length) {
-    const r = collideBuildings(nx, nz, buildings);
+  const b = world.bounds;
+  let nx = clamp(player.x + mx * speed * dt, b.minX, b.maxX);
+  let nz = clamp(player.z + mz * speed * dt, b.minZ, b.maxZ);
+  if (world.buildings?.length) {
+    const r = collideBuildings(nx, nz, world.buildings);
     nx = r.x;
     nz = r.z;
   }
-  if (walls.length) {
-    const r = collideWalls(nx, nz, walls);
+  if (world.walls?.length) {
+    const r = collideWalls(nx, nz, world.walls);
+    nx = r.x;
+    nz = r.z;
+  }
+  if (world.grid) {
+    const r = collideGrid(nx, nz, world.grid);
     nx = r.x;
     nz = r.z;
   }

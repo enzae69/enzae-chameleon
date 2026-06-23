@@ -13,6 +13,7 @@ export const ClientMessage = {
   Chat: "chat",
   ToggleReady: "toggle_ready",
   RequestStart: "request_start",
+  SetMap: "set_map",
   Kick: "kick",
 } as const;
 export type ClientMessageType = (typeof ClientMessage)[keyof typeof ClientMessage];
@@ -60,6 +61,9 @@ export interface ChatPayload {
 }
 export interface KickPayload {
   targetSessionId: string;
+}
+export interface SetMapPayload {
+  mapId: string;
 }
 
 // ---- Server -> Client events ----

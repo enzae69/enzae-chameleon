@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { SELECTABLE_MAP_IDS, mapDef } from "@enzae/shared";
 import GameCanvas from "../game/GameCanvas";
 import HUD from "./HUD";
 import { useGame } from "../store/gameStore";
@@ -90,6 +91,8 @@ function WaitingOverlay() {
   const roomName = useGame((s) => s.roomName);
   const roomKind = useGame((s) => s.roomKind);
   const countdownEndsAt = useGame((s) => s.countdownEndsAt);
+  const mapId = useGame((s) => s.mapId);
+  const setMap = useGame((s) => s.setMap);
   const toggleReady = useGame((s) => s.toggleReady);
   const requestStart = useGame((s) => s.requestStart);
   const kick = useGame((s) => s.kick);
@@ -125,6 +128,32 @@ function WaitingOverlay() {
           <span className="font-mono font-semibold">{roomId}</span>
           <span className="text-white/40">⧉</span>
         </button>
+
+        {/* Map selection (host chooses; everyone sees the choice). */}
+        <div className="mb-4">
+          <div className="mb-1.5 text-xs uppercase tracking-wide text-white/50">
+            Karte {isHost ? "" : "(Host wählt)"}
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {SELECTABLE_MAP_IDS.map((id) => {
+              const active = id === mapId;
+              return (
+                <button
+                  key={id}
+                  disabled={!isHost || Boolean(countdownEndsAt)}
+                  onClick={() => setMap(id)}
+                  className={`rounded-xl px-2 py-2 text-sm font-semibold transition ${
+                    active
+                      ? "bg-cham-600 text-white ring-2 ring-cham-300"
+                      : "bg-white/5 text-white/70 hover:bg-white/10"
+                  } ${!isHost ? "cursor-default opacity-90" : ""}`}
+                >
+                  {mapDef(id).name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         <div className="mb-4 max-h-56 space-y-1.5 overflow-y-auto">
           {roster.map((r) => (

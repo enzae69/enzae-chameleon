@@ -21,6 +21,7 @@ import {
   type ShotEvent,
   type ScanResultEvent,
   type WeaponType,
+  type MapId,
 } from "@enzae/shared";
 import { SERVER_URL, HTTP_URL } from "../config";
 import { live, resetLive } from "../net/live";
@@ -67,6 +68,7 @@ interface GameStore {
   phaseEndsAt: number;
   countdownEndsAt: number;
   mapSeed: number;
+  mapId: MapId;
   laserCdUntil: number;
   taserCdUntil: number;
   scanCdUntil: number;
@@ -95,6 +97,7 @@ interface GameStore {
   scan: () => void;
   toggleReady: () => void;
   requestStart: () => void;
+  setMap: (mapId: MapId) => void;
   kick: (targetSessionId: string) => void;
   sendChat: (text: string) => void;
   sendEmote: (emote: string) => void;
@@ -147,6 +150,7 @@ export const useGame = create<GameStore>((set, get) => {
       phaseEndsAt: state.phaseEndsAt,
       countdownEndsAt: state.countdownEndsAt,
       mapSeed: state.mapSeed,
+      mapId: state.mapId,
       roomName: state.roomName,
       roomKind: state.kind,
       isHost: state.hostId === room.sessionId,
@@ -295,6 +299,7 @@ export const useGame = create<GameStore>((set, get) => {
     phaseEndsAt: 0,
     countdownEndsAt: 0,
     mapSeed: 1,
+    mapId: "backrooms",
     laserCdUntil: 0,
     taserCdUntil: 0,
     scanCdUntil: 0,
@@ -391,6 +396,7 @@ export const useGame = create<GameStore>((set, get) => {
     },
     toggleReady: () => get().room?.send(ClientMessage.ToggleReady, {}),
     requestStart: () => get().room?.send(ClientMessage.RequestStart, {}),
+    setMap: (mapId) => get().room?.send(ClientMessage.SetMap, { mapId }),
     kick: (targetSessionId) => get().room?.send(ClientMessage.Kick, { targetSessionId }),
     sendChat: (text) => get().room?.send(ClientMessage.Chat, { text }),
     sendEmote: (emote) => get().room?.send(ClientMessage.Emote, { emote }),

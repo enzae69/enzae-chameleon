@@ -29,6 +29,9 @@ import {
   DEFAULT_HIDER_COLOR,
   SEEKER_COLOR,
   ARENA_HALF,
+  BOUND_MIN,
+  BOUND_MAX_X,
+  BOUND_MAX_Z,
   XP,
   generateMap,
   generateBuildings,
@@ -36,12 +39,16 @@ import {
   nearestObject,
   nearestObjectColor,
   levelFromTotalXp,
+  mapDef,
+  isMapId,
+  collideGrid,
+  type SetMapPayload,
   type Building,
   type WallSeg,
 } from "@enzae/shared";
 import { verifyIdToken } from "../auth";
 import { getOrCreateProfile, awardMatchResults } from "../services/profile";
-import { InputState, integrate, dist2D, pickSeekers } from "../game/logic";
+import { InputState, integrate, dist2D, pickSeekers, type MoveWorld } from "../game/logic";
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
@@ -82,8 +89,9 @@ export class GameRoom extends Room<GameState> {
   private kickedIds = new Set<string>(); // sessions removed by the host (skip reconnection)
   private lastShot = new Map<string, { laser: number; taser: number }>(); // per-weapon cooldown
   private lastScan = new Map<string, number>(); // seeker radar cooldown
-  private buildings: Building[] = []; // collision geometry for the current map
-  private walls: WallSeg[] = []; // room/perimeter/deck wall collision
+  private buildings: Building[] = []; // collision geometry for the lab map
+  private walls: WallSeg[] = []; // room/perimeter/deck wall collision (lab)
+  private world: MoveWorld = { bounds: { minX: 0, maxX: 0, minZ: 0, maxZ: 0 } };
   private matchStart = 0;
 
   // ---------------------------------------------------------------- lifecycle
@@ -102,6 +110,7 @@ export class GameRoom extends Room<GameState> {
     this.buildings = generateBuildings(state.mapSeed);
     this.walls = generateWalls(state.mapSeed);
     this.setState(state);
+    this.buildWorld();
 
     if (kind === "private") this.setPrivate(true);
     this.updateMetadata();
@@ -153,7 +162,7 @@ export class GameRoom extends Room<GameState> {
     p.level = auth.level;
     p.skinId = auth.skinId;
     p.connected = true;
-    const spawn = this.randomSpawn();
+    const spawn = this.spawnPoint(true);
     p.x = spawn.x;
     p.z = spawn.z;
     p.y = 0;
@@ -257,6 +266,16 @@ export class GameRoom extends Room<GameState> {
         return;
       }
       this.startCountdown(3);
+    });
+
+    this.onMessage(ClientMessage.SetMap, (client, msg: SetMapPayload) => {
+      // Host picks the map, only before the round starts.
+      if (this.state.phase !== "waiting" || client.sessionId !== this.state.hostId) return;
+      if (this.state.countdownEndsAt) return; // not mid-countdown
+      if (!msg || !isMapId(msg.mapId) || msg.mapId === this.state.mapId) return;
+      this.state.mapId = msg.mapId;
+      this.buildWorld();
+      this.broadcast(ServerMessage.Notice, { text: `Karte: ${mapDef(msg.mapId).name}` });
     });
 
     this.onMessage(ClientMessage.Kick, (client, msg: { targetSessionId?: string }) => {
@@ -411,7 +430,7 @@ export class GameRoom extends Room<GameState> {
     this.state.players.forEach((p) => {
       const input = this.inputs.get(p.sessionId);
       if (!input) return;
-      integrate(p, input, dt, phase, this.buildings, this.walls);
+      integrate(p, input, dt, phase, this.world);
     });
 
     const now = Date.now();
@@ -453,6 +472,7 @@ export class GameRoom extends Room<GameState> {
     this.state.mapSeed = this.newSeed();
     this.buildings = generateBuildings(this.state.mapSeed);
     this.walls = generateWalls(this.state.mapSeed);
+    this.buildWorld(); // refresh collision world for the chosen map
     this.tags.clear();
     this.lastShot.clear();
     this.lastScan.clear();
@@ -464,7 +484,7 @@ export class GameRoom extends Room<GameState> {
       p.isReady = false;
       this.clearDisguise(p);
       p.team = seekers.has(p.sessionId) ? "seeker" : "hider";
-      const spawn = p.team === "seeker" ? { x: 0, z: 0 } : this.randomSpawn();
+      const spawn = this.spawnPoint(p.team !== "seeker");
       p.x = spawn.x;
       p.z = spawn.z;
       p.y = 0;
@@ -579,9 +599,40 @@ export class GameRoom extends Room<GameState> {
     return this.connectedPlayers()[0]?.sessionId;
   }
 
+  /** Rebuild the active collision world from the selected map. */
+  private buildWorld() {
+    const def = mapDef(this.state.mapId);
+    if (def.geo) {
+      this.world = { bounds: def.geo.bounds, grid: def.geo.grid };
+    } else {
+      this.world = {
+        bounds: { minX: BOUND_MIN, maxX: BOUND_MAX_X, minZ: BOUND_MIN, maxZ: BOUND_MAX_Z },
+        walls: this.walls,
+        buildings: this.buildings,
+      };
+    }
+  }
+
   private randomSpawn() {
     const limit = ARENA_HALF - 2;
     return { x: (Math.random() * 2 - 1) * limit, z: (Math.random() * 2 - 1) * limit };
+  }
+
+  /** A spawn point valid for the active map (centre, or scattered around it). */
+  private spawnPoint(scatter: boolean): { x: number; z: number } {
+    const def = mapDef(this.state.mapId);
+    if (def.geo) {
+      let x = def.geo.spawn.x;
+      let z = def.geo.spawn.z;
+      if (scatter) {
+        const a = Math.random() * Math.PI * 2;
+        const r = Math.random() * def.geo.spawn.radius;
+        x += Math.cos(a) * r;
+        z += Math.sin(a) * r;
+      }
+      return collideGrid(x, z, def.geo.grid); // nudge out of any wall
+    }
+    return scatter ? this.randomSpawn() : { x: 0, z: 0 };
   }
 
   private newSeed(): number {

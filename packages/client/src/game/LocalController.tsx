@@ -13,6 +13,8 @@ import {
   generateWalls,
   collideBuildings,
   collideWalls,
+  collideGrid,
+  mapDef,
 } from "@enzae/shared";
 import { live } from "../net/live";
 import { useGame } from "../store/gameStore";
@@ -133,17 +135,28 @@ export default function LocalController() {
     }
     const speed = team === "seeker" ? SEEKER_SPEED : HIDER_SPEED;
 
-    pos.current.x = THREE.MathUtils.clamp(pos.current.x + mx * speed * dt, BOUND_MIN, BOUND_MAX_X);
-    pos.current.z = THREE.MathUtils.clamp(pos.current.z + mz * speed * dt, BOUND_MIN, BOUND_MAX_Z);
-    if (buildings.length) {
-      const c = collideBuildings(pos.current.x, pos.current.z, buildings);
+    const def = mapDef(useGame.getState().mapId);
+    if (def.geo) {
+      // GLB map: clamp to its footprint, then resolve against the baked grid.
+      const b = def.geo.bounds;
+      let nx = THREE.MathUtils.clamp(pos.current.x + mx * speed * dt, b.minX, b.maxX);
+      let nz = THREE.MathUtils.clamp(pos.current.z + mz * speed * dt, b.minZ, b.maxZ);
+      const c = collideGrid(nx, nz, def.geo.grid);
       pos.current.x = c.x;
       pos.current.z = c.z;
-    }
-    if (walls.length) {
-      const c = collideWalls(pos.current.x, pos.current.z, walls);
-      pos.current.x = c.x;
-      pos.current.z = c.z;
+    } else {
+      pos.current.x = THREE.MathUtils.clamp(pos.current.x + mx * speed * dt, BOUND_MIN, BOUND_MAX_X);
+      pos.current.z = THREE.MathUtils.clamp(pos.current.z + mz * speed * dt, BOUND_MIN, BOUND_MAX_Z);
+      if (buildings.length) {
+        const c = collideBuildings(pos.current.x, pos.current.z, buildings);
+        pos.current.x = c.x;
+        pos.current.z = c.z;
+      }
+      if (walls.length) {
+        const c = collideWalls(pos.current.x, pos.current.z, walls);
+        pos.current.x = c.x;
+        pos.current.z = c.z;
+      }
     }
     if (len > 0.01) pos.current.yaw = Math.atan2(mx, mz);
 

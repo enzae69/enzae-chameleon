@@ -9,6 +9,7 @@ export class GameState extends Schema {
   @type("number") phaseEndsAt = 0; // server epoch ms; 0 = no timer
   @type("string") hostId = "";
   @type("number") mapSeed = 1;
+  @type("string") mapId = "backrooms"; // selected map (default to a real map)
   @type("number") maxPlayers = 12;
   @type("number") countdownEndsAt = 0; // pre-start countdown
   @type({ map: Player }) players = new MapSchema<Player>();
